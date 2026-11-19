@@ -26,3 +26,18 @@ export function checkDuplicates(ws: Valid[]): Problem[] {
   }
   return out;
 }
+
+export function platformOf(url: string): string {
+  let host: string;
+  try { host = new URL(url).hostname.replace(/^(www|m)\./, ""); } catch { return "invalid"; }
+  if (host === "youtube.com" || host === "youtu.be") return "youtube";
+  if (host === "instagram.com") return "instagram";
+  if (host === "tiktok.com") return "tiktok";
+  return `other:${host}`;
+}
+export function checkSources(ws: Valid[]): Problem[] {
+  return ws.flatMap(({ path, word }) => {
+    const ps = new Set(word.sources.map(platformOf).filter(p => p !== "invalid"));
+    return ps.size >= 2 ? [] : [P(path, "출처", `서로 다른 플랫폼 2개 이상 필요 (지금 ${[...ps].join(", ") || "없음"})`)];
+  });
+}

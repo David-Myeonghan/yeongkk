@@ -29,3 +29,18 @@ test("같은 로케일 같은 말 = 중복 (공백·NFD·은퇴 포함)", () => 
 test("다른 로케일이면 중복 아님", () => {
   expect(checkDuplicates([v({}, "a"), v({ locale: "en-US" }, "b")])).toEqual([]);
 });
+
+import { checkSources, platformOf } from "./checks";
+test("플랫폼 판별", () => {
+  expect(platformOf("https://youtu.be/x")).toBe("youtube");
+  expect(platformOf("https://m.youtube.com/watch?v=x")).toBe("youtube");
+  expect(platformOf("https://www.tiktok.com/tag/abc")).toBe("tiktok");
+  expect(platformOf("not a url")).toBe("invalid");
+});
+test("같은 플랫폼 주소 2개는 실패", () => {
+  const w = sampleWord({ sources: ["https://youtu.be/a", "https://youtu.be/b"] });
+  expect(checkSources([{ path: "p", word: w }]).length).toBe(1);
+});
+test("서로 다른 플랫폼 2개면 통과", () => {
+  expect(checkSources([{ path: "p", word: sampleWord() }])).toEqual([]);
+});

@@ -1,0 +1,13 @@
+export interface Word {
+  id: string; locale: string; kind: "word"; word: string; meaning: string;
+  examples: string[]; origin?: string; funnyWrong: string[]; sources: string[];
+  addedBy: "auto" | "human" | "report"; addedAt: string; status: "active" | "retired";
+}
+export interface LoadedWord { path: string; folderLocale: string; fileName: string; data: unknown }
+export interface Problem { file: string; rule: string; message: string }
+export interface CheckContext {
+  words: LoadedWord[];
+  banned: Record<string, string[]>;   // locale → 금지어
+  changedFiles: string[];             // PR 이 바꾼 파일
+  isBot: boolean;                     // head 브랜치가 auto/ 로 시작
+}

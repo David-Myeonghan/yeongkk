@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yeongkk/word.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id","locale","kind","word","meaning","examples","funnyWrong","sources","addedBy","addedAt","status"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "maxLength": 40 },
+    "locale": { "type": "string", "pattern": "^[a-z]{2}-[A-Z]{2}$" },
+    "kind": { "const": "word" },
+    "word": { "type": "string", "minLength": 1, "maxLength": 30 },
+    "meaning": { "type": "string", "minLength": 2, "maxLength": 60 },
+    "examples": { "type": "array", "minItems": 2, "maxItems": 5, "items": { "type": "string", "minLength": 2, "maxLength": 100 } },
+    "origin": { "type": "string", "maxLength": 80 },
+    "funnyWrong": { "type": "array", "minItems": 1, "maxItems": 3, "items": { "type": "string", "minLength": 1, "maxLength": 60 } },
+    "sources": { "type": "array", "minItems": 2, "maxItems": 6, "items": { "type": "string", "format": "uri" } },
+    "addedBy": { "enum": ["auto", "human", "report"] },
+    "addedAt": { "type": "string", "format": "date" },
+    "status": { "enum": ["active", "retired"] }
+  }
+}

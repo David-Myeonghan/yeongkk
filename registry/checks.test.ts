@@ -66,3 +66,15 @@ test("예문에 그 말이 없으면 실패", () => {
 test("뜻이 말 자체면 실패", () => {
   expect(checkQuiz([{ path: "p", word: sampleWord({ meaning: "갓생" }) }]).length).toBe(1);
 });
+
+import { checkPII } from "./checks";
+const pii = (o: Partial<Word>) => checkPII([{ path: "p", word: sampleWord(o) }]);
+test("@아이디", () => expect(pii({ examples: ["@kim_01 갓생", "갓생"] }).length).toBe(1));
+test("이메일", () => expect(pii({ examples: ["a.b@mail.com 갓생", "갓생"] }).length).toBe(1));
+test("전화번호", () => expect(pii({ examples: ["010-1234-5678 갓생", "갓생"] }).length).toBe(1));
+test("계정 주소", () => expect(pii({ sources: ["https://www.youtube.com/@someone", "https://www.instagram.com/p/X/"] }).length).toBe(1));
+test("인스타 프로필 주소", () => expect(pii({ sources: ["https://youtu.be/a", "https://www.instagram.com/someone/"] }).length).toBe(1));
+test("정상", () => expect(pii({})).toEqual([]));
+test("유튜브 짧은 주소·shorts 통과", () => {
+  expect(pii({ sources: ["https://youtu.be/abc123", "https://www.youtube.com/shorts/Ab-cd_1"] })).toEqual([]);
+});

@@ -59,3 +59,27 @@ export function checkQuiz(ws: Valid[]): Problem[] {
     return out;
   });
 }
+
+const PII: [string, RegExp][] = [
+  ["이메일", /[\w.+-]+@[\w-]+\.[\w.-]+/],
+  ["@아이디", /(^|[^\w.])@[A-Za-z0-9_.]{2,}/],
+  ["전화번호", /01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}/],
+];
+const CONTENT_URL: Record<string, RegExp> = {
+  youtube: /^\/(watch|shorts\/[\w-]+)|^\/[\w-]{6,}$/,   // youtube.com/watch, /shorts/ID, youtu.be/ID
+  instagram: /^\/(p|reel)\/[\w-]+\/?$/,
+  tiktok: /^\/tag\/[^/]+\/?$/,
+};
+export function checkPII(ws: Valid[]): Problem[] {
+  return ws.flatMap(({ path, word }) => {
+    const out: Problem[] = [];
+    const texts = [word.meaning, word.origin ?? "", ...word.examples, ...word.funnyWrong];
+    for (const [name, re] of PII) if (texts.some(t => re.test(t))) out.push(P(path, "개인정보", `${name} 들어 있음`));
+    for (const u of word.sources) {
+      const plat = platformOf(u); if (!(plat in CONTENT_URL)) continue;
+      const p = new URL(u).pathname;
+      if (p.includes("/@") || !CONTENT_URL[plat].test(p)) out.push(P(path, "개인정보", `콘텐츠 주소만 허용(계정 주소 금지): ${u}`));
+    }
+    return out;
+  });
+}

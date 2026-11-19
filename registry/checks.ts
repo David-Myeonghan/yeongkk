@@ -1,0 +1,17 @@
+import type { LoadedWord, Problem, Word } from "./types";
+import { validateWordSchema } from "./schema";
+
+export const norm = (s: string) => s.normalize("NFC").replace(/\s+/g, "").toLowerCase();
+const P = (file: string, rule: string, message: string): Problem => ({ file, rule, message });
+
+export function checkFormat(w: LoadedWord): Problem[] {
+  const out: Problem[] = [];
+  const d = w.data as any;
+  if (d && d.__parseError) return [P(w.path, "형식", `JSON 아님: ${d.__parseError}`)];
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*\.json$/.test(w.fileName)) out.push(P(w.path, "형식", "파일 이름은 영문 소문자·숫자·- 만"));
+  const r = validateWordSchema(d);
+  if (!r.ok) { for (const e of r.errors) out.push(P(w.path, "형식", e)); return out; }
+  if (d.locale !== w.folderLocale) out.push(P(w.path, "형식", `폴더 로케일 ${w.folderLocale} ≠ 파일 locale ${d.locale}`));
+  if (`${d.id}.json` !== w.fileName) out.push(P(w.path, "형식", `파일 이름 ≠ id(${d.id})`));
+  return out;
+}

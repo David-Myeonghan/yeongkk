@@ -83,3 +83,8 @@ export function checkPII(ws: Valid[]): Problem[] {
     return out;
   });
 }
+
+export function checkScope(changed: string[], isBot: boolean): Problem[] {
+  if (!isBot) return [];
+  return changed.filter(f => !f.startsWith("words/")).map(f => P(f, "변경 범위", "봇 PR 은 words/ 만 바꿀 수 있음"));
+}

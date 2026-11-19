@@ -78,3 +78,9 @@ test("정상", () => expect(pii({})).toEqual([]));
 test("유튜브 짧은 주소·shorts 통과", () => {
   expect(pii({ sources: ["https://youtu.be/abc123", "https://www.youtube.com/shorts/Ab-cd_1"] })).toEqual([]);
 });
+
+import { checkScope } from "./checks";
+test("봇 PR 이 words/ 밖을 바꾸면 실패", () => {
+  expect(checkScope(["words/ko-KR/a.json", "registry/checks.ts"], true).length).toBe(1);
+});
+test("사람 PR 은 범위 제한 없음", () => expect(checkScope(["registry/checks.ts"], false)).toEqual([]));

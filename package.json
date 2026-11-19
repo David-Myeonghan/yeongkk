@@ -7,7 +7,7 @@
     "typecheck": "tsc --noEmit",
     "check": "tsx registry/cli-check.ts",
     "build": "tsx registry/cli-build.ts",
-    "add-word": "tsx registry/add-word.ts"
+    "add-word": "GH_TOKEN=$(gh auth token --user David-Myeonghan) tsx registry/add-word.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

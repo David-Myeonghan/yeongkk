@@ -1,6 +1,10 @@
 name: check
+# 단어 검사 문지기. pull_request_target 이라 이 파일·검사기·금칙어는 언제나 main 것을 쓴다.
+# PR 에서는 words/ 데이터만 가져온다. PR 의 코드(package.json·registry/·스크립트)는 실행하지 않는다.
 on:
-  pull_request:
+  pull_request_target:
+    branches: [main]
+  push:
     branches: [main]
 permissions:
   contents: read
@@ -10,28 +14,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with: { fetch-depth: 0, persist-credentials: false }
       - uses: actions/setup-node@v4
-        with: { node-version: 24, cache: npm }
+        with: { node-version: 24 }
       - run: npm ci
-      - run: npm test
-      - run: npm run typecheck
+      - name: PR 의 words/ 만 가져오기
+        if: github.event_name == 'pull_request_target'
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git fetch --no-tags origin "+refs/pull/$PR/head:refs/remotes/pr/head"
+          rm -rf words
+          git archive "$HEAD_SHA" words | tar -x
+          if [ -n "$(find words -type l)" ]; then echo "::error::words/ 에 심볼릭 링크 금지"; exit 1; fi
       - name: 단어 검사
         id: words
         run: npm run check
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REF: ${{ github.head_ref }}
       - name: 실패 이유를 PR 댓글로
-        if: failure() && steps.words.outcome == 'failure'
-        run: gh pr comment ${{ github.event.pull_request.number }} --body-file check-report.md
+        if: failure() && steps.words.outcome == 'failure' && github.event_name == 'pull_request_target'
+        run: gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file check-report.md
         env:
+          PR: ${{ github.event.pull_request.number }}
           GH_TOKEN: ${{ github.token }}
-  # collect job 은 2부 Task 17 (collect/ 생성) 뒤에 주석을 풀어 켠다.
-  # collect:
-  #   runs-on: ubuntu-latest
-  #   if: ${{ !startsWith(github.head_ref, 'auto/') }}
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: astral-sh/setup-uv@v6
-  #     - run: uv run --directory collect pytest -q

@@ -36,11 +36,13 @@
       "const": "word"
     },
     "word": {
+      "type": "string",
       "$ref": "#/$defs/text",
       "minLength": 1,
       "maxLength": 30
     },
     "meaning": {
+      "type": "string",
       "$ref": "#/$defs/text",
       "minLength": 2,
       "maxLength": 60
@@ -50,12 +52,14 @@
       "minItems": 2,
       "maxItems": 5,
       "items": {
+        "type": "string",
         "$ref": "#/$defs/text",
         "minLength": 2,
         "maxLength": 100
       }
     },
     "origin": {
+      "type": "string",
       "$ref": "#/$defs/text",
       "maxLength": 80
     },
@@ -64,6 +68,7 @@
       "minItems": 1,
       "maxItems": 3,
       "items": {
+        "type": "string",
         "$ref": "#/$defs/text",
         "minLength": 1,
         "maxLength": 60

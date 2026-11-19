@@ -145,3 +145,6 @@ test("중복은 PR 이 건드린 파일을 표시", () => {
   const ps = checkDuplicates([old, added], ["words/ko-KR/gat-3.json"]);
   expect(ps.map(p => p.file)).toEqual(["words/ko-KR/gat-3.json"]);
 });
+test("출처 주소에 계정 정보(userinfo)가 있으면 실패", () => {
+  expect(pii({ sources: ["https://kim.chulsoo@youtu.be/dQw4w9WgXcQ", "https://www.instagram.com/p/X/"] }).length).toBe(1);
+});

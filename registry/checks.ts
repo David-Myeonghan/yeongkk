@@ -81,6 +81,7 @@ const PII: [string, RegExp][] = [
 function contentUrlOk(u: string): boolean {
   let url: URL;
   try { url = new URL(u); } catch { return false; }
+  if (url.username || url.password) return false;
   const host = url.hostname.replace(/^(www|m)\./, ""); const p = url.pathname;
   if (p.includes("/@")) return false;
   if (host === "youtube.com") return (p === "/watch" && !!url.searchParams.get("v")) || /^\/shorts\/[\w-]{11}\/?$/.test(p);

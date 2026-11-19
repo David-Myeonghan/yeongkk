@@ -5,8 +5,7 @@ on:
   pull_request_target:
     branches: [main]
   push:
-    # feat/registry 는 첫 머지(PR #1) 부트스트랩용 — main 에 이 파일이 생기면 바로 다음 PR 에서 지움.
-    branches: [main, feat/registry]
+    branches: [main]
 permissions:
   contents: read
   pull-requests: write

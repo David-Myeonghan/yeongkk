@@ -19,7 +19,7 @@ export function checkFormat(w: LoadedWord): Problem[] {
 export interface Valid { path: string; word: Word }
 export function checkDuplicates(ws: Valid[]): Problem[] {
   const seen = new Map<string, string>(); const out: Problem[] = [];
-  for (const { path, word } of [...ws].sort((a, b) => a.path.localeCompare(b.path))) {
+  for (const { path, word } of [...ws].sort((a, b) => Number(a.word.status === "retired") - Number(b.word.status === "retired") || a.path.localeCompare(b.path))) {
     const k = `${word.locale}\u0000${norm(word.word)}`;
     const first = seen.get(k);
     if (first) out.push(P(path, "중복", `「${word.word}」 이미 있음: ${first}`)); else seen.set(k, path);

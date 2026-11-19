@@ -41,3 +41,11 @@ export function checkSources(ws: Valid[]): Problem[] {
     return ps.size >= 2 ? [] : [P(path, "출처", `서로 다른 플랫폼 2개 이상 필요 (지금 ${[...ps].join(", ") || "없음"})`)];
   });
 }
+
+export function checkBanned(ws: Valid[], banned: Record<string, string[]>): Problem[] {
+  return ws.flatMap(({ path, word }) => {
+    const text = norm([word.word, word.meaning, word.origin ?? "", ...word.examples, ...word.funnyWrong].join(" "));
+    const hit = (banned[word.locale] ?? []).filter(b => text.includes(norm(b)));
+    return hit.length ? [P(path, "금지어", `금지어 포함: ${hit.join(", ")}`)] : [];
+  });
+}

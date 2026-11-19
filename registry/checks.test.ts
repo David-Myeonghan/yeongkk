@@ -44,3 +44,12 @@ test("같은 플랫폼 주소 2개는 실패", () => {
 test("서로 다른 플랫폼 2개면 통과", () => {
   expect(checkSources([{ path: "p", word: sampleWord() }])).toEqual([]);
 });
+
+import { checkBanned } from "./checks";
+test("뜻·예문에 금지어가 있으면 실패", () => {
+  const w = sampleWord({ examples: ["욕1 들어간 예문 갓생", "갓생 둘"] });
+  expect(checkBanned([{ path: "p", word: w }], { "ko-KR": ["욕1"] }).length).toBe(1);
+});
+test("다른 로케일 금지어는 무시", () => {
+  expect(checkBanned([{ path: "p", word: sampleWord() }], { "en-US": ["갓생"] })).toEqual([]);
+});

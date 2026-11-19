@@ -5,6 +5,10 @@ import { makeWord } from "./add-word-core";
 import { loadWords, loadBanned } from "./load";
 import { runAll, toMarkdown } from "./validate";
 
+if (execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()) {
+  console.error("작업 중인 변경이 있음 — 커밋하거나 치운 뒤 다시");
+  process.exit(1);
+}
 const rl = createInterface({ input: process.stdin, output: process.stdout });
 const ask = (q: string) => rl.question(q);
 const list = async (q: string) => (await ask(`${q} (| 로 구분): `)).split("|").map(s => s.trim()).filter(Boolean);
@@ -15,6 +19,10 @@ const a = {
   funnyWrong: await list("웃긴 오답"), sources: await list("출처 주소 2개 이상 (서로 다른 플랫폼)"),
 };
 rl.close();
+if (!/^[a-z]{2}-[A-Z]{2}$/.test(locale) || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(a.id)) {
+  console.error("로케일(예: ko-KR) 또는 id(영문 소문자·숫자·-) 형식이 틀림");
+  process.exit(1);
+}
 const path = `words/${locale}/${a.id}.json`;
 writeFileSync(path, JSON.stringify(makeWord(a, locale, new Date().toISOString().slice(0, 10)), null, 2) + "\n");
 const ps = runAll({ words: loadWords("."), banned: loadBanned("."), changedFiles: [path], deletedFiles: [], isBot: false, root: "." });

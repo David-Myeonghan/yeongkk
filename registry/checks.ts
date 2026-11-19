@@ -15,3 +15,14 @@ export function checkFormat(w: LoadedWord): Problem[] {
   if (`${d.id}.json` !== w.fileName) out.push(P(w.path, "형식", `파일 이름 ≠ id(${d.id})`));
   return out;
 }
+
+export interface Valid { path: string; word: Word }
+export function checkDuplicates(ws: Valid[]): Problem[] {
+  const seen = new Map<string, string>(); const out: Problem[] = [];
+  for (const { path, word } of [...ws].sort((a, b) => a.path.localeCompare(b.path))) {
+    const k = `${word.locale}\u0000${norm(word.word)}`;
+    const first = seen.get(k);
+    if (first) out.push(P(path, "중복", `「${word.word}」 이미 있음: ${first}`)); else seen.set(k, path);
+  }
+  return out;
+}

@@ -1,6 +1,10 @@
 import type { CheckContext, Problem, Word } from "./types";
 import { checkFormat, checkDuplicates, checkSources, checkBanned, checkQuiz, checkPII, checkScope, type Valid } from "./checks";
 import { buildLocale } from "./build";
+import { writeBuild } from "./write-build";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 export function runAll(ctx: CheckContext): Problem[] {
   const out: Problem[] = []; const valid: Valid[] = [];
@@ -10,9 +14,18 @@ export function runAll(ctx: CheckContext): Problem[] {
   }
   out.push(...checkDuplicates(valid, ctx.changedFiles), ...checkSources(valid), ...checkBanned(valid, ctx.banned),
            ...checkQuiz(valid), ...checkPII(valid), ...checkScope(ctx.changedFiles, ctx.deletedFiles, ctx.isBot));
-  for (const locale of new Set(valid.map(v => v.word.locale))) {
-    try { JSON.stringify(buildLocale(valid.map(v => v.word), locale)); }
-    catch (e) { out.push({ file: `words/${locale}`, rule: "묶기", message: String(e) }); }
+  if (ctx.root !== undefined) {
+    if (valid.length === ctx.words.length) {
+      const tmp = mkdtempSync(join(tmpdir(), "yeongkk-build-"));
+      try { writeBuild(ctx.root, tmp); }
+      catch (e) { out.push({ file: "words", rule: "묶기", message: String(e) }); }
+      finally { rmSync(tmp, { recursive: true, force: true }); }
+    }
+  } else {
+    for (const locale of new Set(valid.map(v => v.word.locale))) {
+      try { JSON.stringify(buildLocale(valid.map(v => v.word), locale)); }
+      catch (e) { out.push({ file: `words/${locale}`, rule: "묶기", message: String(e) }); }
+    }
   }
   return out;
 }

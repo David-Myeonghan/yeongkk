@@ -53,3 +53,16 @@ test("뜻·예문에 금지어가 있으면 실패", () => {
 test("다른 로케일 금지어는 무시", () => {
   expect(checkBanned([{ path: "p", word: sampleWord() }], { "en-US": ["갓생"] })).toEqual([]);
 });
+
+import { checkQuiz } from "./checks";
+test("웃긴 오답이 뜻과 같으면 실패", () => {
+  const w = sampleWord({ funnyWrong: ["부지런하고 계획적으로 사는 삶"] });
+  expect(checkQuiz([{ path: "p", word: w }]).length).toBe(1);
+});
+test("예문에 그 말이 없으면 실패", () => {
+  const w = sampleWord({ examples: ["아무 말", "갓생 있음"] });
+  expect(checkQuiz([{ path: "p", word: w }])[0].message).toContain("예문");
+});
+test("뜻이 말 자체면 실패", () => {
+  expect(checkQuiz([{ path: "p", word: sampleWord({ meaning: "갓생" }) }]).length).toBe(1);
+});

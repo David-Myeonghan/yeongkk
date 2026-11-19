@@ -49,3 +49,13 @@ export function checkBanned(ws: Valid[], banned: Record<string, string[]>): Prob
     return hit.length ? [P(path, "금지어", `금지어 포함: ${hit.join(", ")}`)] : [];
   });
 }
+
+export function checkQuiz(ws: Valid[]): Problem[] {
+  return ws.flatMap(({ path, word }) => {
+    const out: Problem[] = []; const m = norm(word.meaning);
+    if (word.funnyWrong.some(f => norm(f) === m)) out.push(P(path, "퀴즈", "웃긴 오답이 뜻과 같음"));
+    word.examples.forEach((e, i) => { if (!norm(e).includes(norm(word.word))) out.push(P(path, "퀴즈", `예문 ${i + 1} 에 「${word.word}」 없음`)); });
+    if (m === norm(word.word)) out.push(P(path, "퀴즈", "뜻이 말과 같음"));
+    return out;
+  });
+}

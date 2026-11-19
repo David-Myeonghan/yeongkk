@@ -9,5 +9,6 @@ export interface CheckContext {
   words: LoadedWord[];
   banned: Record<string, string[]>;   // locale → 금지어
   changedFiles: string[];             // PR 이 바꾼 파일
+  deletedFiles: string[];             // PR 이 지운 파일
   isBot: boolean;                     // head 브랜치가 auto/ 로 시작
 }

@@ -1,7 +1,8 @@
 import type { LoadedWord, Problem, Word } from "./types";
 import { validateWordSchema } from "./schema";
 
-export const norm = (s: string) => s.normalize("NFC").replace(/\s+/g, "").toLowerCase();
+export const normKey = (s: string) => s.normalize("NFKC").replace(/[\s\p{Cf}]/gu, "").toLowerCase();
+export const normText = (s: string) => s.normalize("NFKC").replace(/\p{Cf}/gu, "").replace(/\s+/g, " ").toLowerCase();
 const P = (file: string, rule: string, message: string): Problem => ({ file, rule, message });
 
 export function checkFormat(w: LoadedWord): Problem[] {
@@ -17,10 +18,16 @@ export function checkFormat(w: LoadedWord): Problem[] {
 }
 
 export interface Valid { path: string; word: Word }
-export function checkDuplicates(ws: Valid[]): Problem[] {
+export function checkDuplicates(ws: Valid[], changedFiles: string[]): Problem[] {
+  const changed = new Set(changedFiles);
+  const rank = (v: Valid) => [Number(changed.has(v.path)), Number(v.word.status === "retired")];
   const seen = new Map<string, string>(); const out: Problem[] = [];
-  for (const { path, word } of [...ws].sort((a, b) => Number(a.word.status === "retired") - Number(b.word.status === "retired") || a.path.localeCompare(b.path))) {
-    const k = `${word.locale}\u0000${norm(word.word)}`;
+  const sorted = [...ws].sort((a, b) => {
+    const ra = rank(a), rb = rank(b);
+    return ra[0] - rb[0] || ra[1] - rb[1] || a.path.localeCompare(b.path);
+  });
+  for (const { path, word } of sorted) {
+    const k = `${word.locale}\u0000${normKey(word.word)}`;
     const first = seen.get(k);
     if (first) out.push(P(path, "중복", `「${word.word}」 이미 있음: ${first}`)); else seen.set(k, path);
   }
@@ -35,56 +42,71 @@ export function platformOf(url: string): string {
   if (host === "tiktok.com") return "tiktok";
   return `other:${host}`;
 }
+const ALLOWED = new Set(["youtube", "instagram", "tiktok"]);
 export function checkSources(ws: Valid[]): Problem[] {
   return ws.flatMap(({ path, word }) => {
-    const ps = new Set(word.sources.map(platformOf).filter(p => p !== "invalid"));
-    return ps.size >= 2 ? [] : [P(path, "출처", `서로 다른 플랫폼 2개 이상 필요 (지금 ${[...ps].join(", ") || "없음"})`)];
+    const out: Problem[] = [];
+    for (const u of word.sources) if (!ALLOWED.has(platformOf(u))) out.push(P(path, "출처", `허용 안 된 출처: ${u}`));
+    const ps = new Set(word.sources.map(platformOf).filter(p => ALLOWED.has(p)));
+    if (ps.size < 2) out.push(P(path, "출처", `서로 다른 플랫폼 2개 이상 필요 (지금 ${[...ps].join(", ") || "없음"})`));
+    return out;
   });
 }
 
 export function checkBanned(ws: Valid[], banned: Record<string, string[]>): Problem[] {
   return ws.flatMap(({ path, word }) => {
-    const text = norm([word.word, word.meaning, word.origin ?? "", ...word.examples, ...word.funnyWrong].join(" "));
-    const hit = (banned[word.locale] ?? []).filter(b => text.includes(norm(b)));
+    const fields = [word.word, word.meaning, word.origin ?? "", ...word.examples, ...word.funnyWrong].map(normText);
+    const hit = (banned[word.locale] ?? []).filter(b => { const nb = normText(b); return nb !== "" && fields.some(f => f.includes(nb)); });
     return hit.length ? [P(path, "금지어", `금지어 포함: ${hit.join(", ")}`)] : [];
   });
 }
 
 export function checkQuiz(ws: Valid[]): Problem[] {
   return ws.flatMap(({ path, word }) => {
-    const out: Problem[] = []; const m = norm(word.meaning);
-    if (word.funnyWrong.some(f => norm(f) === m)) out.push(P(path, "퀴즈", "웃긴 오답이 뜻과 같음"));
-    word.examples.forEach((e, i) => { if (!norm(e).includes(norm(word.word))) out.push(P(path, "퀴즈", `예문 ${i + 1} 에 「${word.word}」 없음`)); });
-    if (m === norm(word.word)) out.push(P(path, "퀴즈", "뜻이 말과 같음"));
+    const out: Problem[] = []; const m = normKey(word.meaning);
+    const k = normKey(word.word);
+    const needles = k.length >= 3 && k.endsWith("다") ? [k, k.slice(0, -1)] : [k];
+    if (word.funnyWrong.some(f => normKey(f) === m)) out.push(P(path, "퀴즈", "웃긴 오답이 뜻과 같음"));
+    word.examples.forEach((e, i) => { const ek = normKey(e); if (!needles.some(n => ek.includes(n))) out.push(P(path, "퀴즈", `예문 ${i + 1} 에 「${word.word}」 없음`)); });
+    if (m === k) out.push(P(path, "퀴즈", "뜻이 말과 같음"));
     return out;
   });
 }
 
 const PII: [string, RegExp][] = [
   ["이메일", /[\w.+-]+@[\w-]+\.[\w.-]+/],
-  ["@아이디", /(^|[^\w.])@[A-Za-z0-9_.]{2,}/],
-  ["전화번호", /01[016789][-\s.]?\d{3,4}[-\s.]?\d{4}/],
+  ["@아이디", /(^|[^\w.])@[A-Za-z][A-Za-z0-9_.]{1,}/],
+  ["전화번호", /(?<!\d)(?:\+82[-\s]?|0)1[016789]\s*[-.]?\s*\d{3,4}\s*[-.]?\s*\d{4}(?!\d)/],
 ];
-const CONTENT_URL: Record<string, RegExp> = {
-  youtube: /^\/(watch|shorts\/[\w-]+)|^\/[\w-]{6,}$/,   // youtube.com/watch, /shorts/ID, youtu.be/ID
-  instagram: /^\/(p|reel)\/[\w-]+\/?$/,
-  tiktok: /^\/tag\/[^/]+\/?$/,
-};
+function contentUrlOk(u: string): boolean {
+  let url: URL;
+  try { url = new URL(u); } catch { return false; }
+  const host = url.hostname.replace(/^(www|m)\./, ""); const p = url.pathname;
+  if (p.includes("/@")) return false;
+  if (host === "youtube.com") return (p === "/watch" && !!url.searchParams.get("v")) || /^\/shorts\/[\w-]{11}\/?$/.test(p);
+  if (host === "youtu.be") return /^\/[\w-]{11}\/?$/.test(p);
+  if (host === "instagram.com") return /^\/(p|reel)\/[\w-]+\/?$/.test(p);
+  if (host === "tiktok.com") return /^\/tag\/[^/]+\/?$/.test(p);
+  return true;
+}
 export function checkPII(ws: Valid[]): Problem[] {
   return ws.flatMap(({ path, word }) => {
     const out: Problem[] = [];
-    const texts = [word.meaning, word.origin ?? "", ...word.examples, ...word.funnyWrong];
+    const texts = [word.meaning, word.origin ?? "", ...word.examples, ...word.funnyWrong].map(t => t.normalize("NFKC"));
     for (const [name, re] of PII) if (texts.some(t => re.test(t))) out.push(P(path, "개인정보", `${name} 들어 있음`));
     for (const u of word.sources) {
-      const plat = platformOf(u); if (!(plat in CONTENT_URL)) continue;
-      const p = new URL(u).pathname;
-      if (p.includes("/@") || !CONTENT_URL[plat].test(p)) out.push(P(path, "개인정보", `콘텐츠 주소만 허용(계정 주소 금지): ${u}`));
+      if (!ALLOWED.has(platformOf(u))) continue;
+      if (!contentUrlOk(u)) out.push(P(path, "개인정보", `콘텐츠 주소만 허용(계정 주소 금지): ${u}`));
     }
     return out;
   });
 }
 
-export function checkScope(changed: string[], isBot: boolean): Problem[] {
+const BOT_FILE = /^words\/[a-z]{2}-[A-Z]{2}\/[a-z0-9]+(-[a-z0-9]+)*\.json$/;
+export function checkScope(changed: string[], deleted: string[], isBot: boolean): Problem[] {
   if (!isBot) return [];
-  return changed.filter(f => !f.startsWith("words/")).map(f => P(f, "변경 범위", "봇 PR 은 words/ 만 바꿀 수 있음"));
+  return [
+    ...changed.filter(f => !BOT_FILE.test(f)).map(f => P(f, "변경 범위", "봇 PR 은 words/<로케일>/<id>.json 만 바꿀 수 있음")),
+    ...deleted.map(f => P(f, "변경 범위", "봇 PR 은 파일을 지울 수 없음")),
+  ];
 }

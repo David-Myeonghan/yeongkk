@@ -8,8 +8,8 @@ export function runAll(ctx: CheckContext): Problem[] {
     const f = checkFormat(w); out.push(...f);
     if (f.length === 0) valid.push({ path: w.path, word: w.data as Word });
   }
-  out.push(...checkDuplicates(valid), ...checkSources(valid), ...checkBanned(valid, ctx.banned),
-           ...checkQuiz(valid), ...checkPII(valid), ...checkScope(ctx.changedFiles, ctx.isBot));
+  out.push(...checkDuplicates(valid, ctx.changedFiles), ...checkSources(valid), ...checkBanned(valid, ctx.banned),
+           ...checkQuiz(valid), ...checkPII(valid), ...checkScope(ctx.changedFiles, ctx.deletedFiles, ctx.isBot));
   for (const locale of new Set(valid.map(v => v.word.locale))) {
     try { JSON.stringify(buildLocale(valid.map(v => v.word), locale)); }
     catch (e) { out.push({ file: `words/${locale}`, rule: "묶기", message: String(e) }); }

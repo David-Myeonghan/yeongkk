@@ -5,8 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppData } from "../app/AppData";
 import { Icon, quizAppBar, useHeadingFocus, useQuizRoute, type QuizView } from "../app/screen";
 import { saveProgress } from "../state/progress";
-import { answer, questionAt } from "../state/session";
-import { localDate } from "../state/today";
+import { answer, questionAt, roundDay } from "../state/session";
+import { funnyWrongOn } from "../state/variants";
 import * as q from "../styles/quiz.css";
 import * as ui from "../styles/screen.css";
 import { vars } from "../styles/theme.css";
@@ -31,7 +31,7 @@ function QuestionBody(props: { view: QuizView; index: number; restart(): void; l
   const { replace } = useFlow();
   const { isTop } = useActivity();
   const headingRef = useHeadingFocus<HTMLHeadingElement>();
-  const question = useMemo(() => questionAt(view.progress, view.words, index, { funnyWrong: false }), [view, index]);
+  const question = useMemo(() => questionAt(view.progress, view.words, index, { funnyWrong: funnyWrongOn() }), [view, index]);
   const word = useMemo(() => view.words.find((w) => w.id === question?.wordId), [view.words, question]);
   const [picked, setPicked] = useState<number | null>(null);
   const pickedRef = useRef(false);
@@ -79,7 +79,7 @@ function QuestionBody(props: { view: QuizView; index: number; restart(): void; l
       </div>
       <h1 ref={headingRef} tabIndex={-1} className={ui.heading}>
         <span className={q.askRow}>
-          {isNew(word, localDate(new Date())) && <span className={q.newBadge}>NEW</span>}
+          {isNew(word, roundDay(view.progress)) && <span className={q.newBadge}>NEW</span>}
           <span>{question.kind === "meaning" ? "이 말, 무슨 뜻일까요?" : "이 뜻, 무슨 말일까요?"}</span>
         </span>
         <span className={`${ui.bubble.said} ${q.promptText[question.kind]}`}>{question.prompt}</span>
@@ -93,7 +93,6 @@ function QuestionBody(props: { view: QuizView; index: number; restart(): void; l
               type="button"
               className={`${q.choice[state]} ${q.choiceSize[question.kind]}`}
               aria-disabled={picked !== null}
-              aria-pressed={picked === i}
               onClick={() => choose(i)}
             >
               <span className={q.choiceText}>{text}</span>

@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { vanillaExtractPlugin } from "@vanilla-extract/vite-plugin";
@@ -18,4 +19,5 @@ export default defineConfig({
     proxy: { "/api": "http://localhost:8787" },
   },
   build: { outDir: "dist", sourcemap: true },
+  test: { include: ["src/**/*.test.ts", "src/**/*.test.tsx"] },
 });

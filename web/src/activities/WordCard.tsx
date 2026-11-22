@@ -1,8 +1,10 @@
 import { AppScreen } from "@stackflow/plugin-basic-ui";
 import { useFlow, type ActivityComponentType } from "@stackflow/react";
 import { useEffect, useMemo } from "react";
+import { visuallyHidden } from "../app/a11y.css";
 import { Icon, quizAppBar, useHeadingFocus, useQuizRoute, type QuizView } from "../app/screen";
 import { questionAt } from "../state/session";
+import { funnyWrongOn } from "../state/variants";
 import * as q from "../styles/quiz.css";
 import * as ui from "../styles/screen.css";
 import { vars } from "../styles/theme.css";
@@ -24,7 +26,7 @@ function WordCardBody(props: { view: QuizView; index: number; restart(): void; l
   const { replace } = useFlow();
   const headingRef = useHeadingFocus<HTMLHeadingElement>();
   const record = view.progress.answers[index];
-  const question = useMemo(() => questionAt(view.progress, view.words, index, { funnyWrong: false }), [view, index]);
+  const question = useMemo(() => questionAt(view.progress, view.words, index, { funnyWrong: funnyWrongOn() }), [view, index]);
   const word = useMemo(() => view.words.find((w) => w.id === record?.wordId), [view.words, record]);
 
   useEffect(() => {
@@ -36,22 +38,24 @@ function WordCardBody(props: { view: QuizView; index: number; restart(): void; l
   const right = record.correct;
   const answerText = question.choices[question.answerIndex];
   const pickedText = question.choices[record.choice];
+  const verdict = right ? "맞았어요" : "아쉬워요";
 
   const next = () =>
     leave(() => (last ? replace("Result", {}) : replace("Question", { index: String(index + 1) })));
 
   return (
     <main className={ui.page}>
-      <div className={`${q.verdict} ${q.verdictTone[right ? "right" : "wrong"]}`}>
+      <div className={`${q.verdict} ${q.verdictTone[right ? "right" : "wrong"]}`} aria-hidden="true">
         <span className={`${q.verdictIcon[right ? "right" : "wrong"]} ${ui.popIn}`}>
           <Icon name={right ? "check" : "cross"} />
         </span>
-        {right ? "맞았어요" : "아쉬워요"}
+        {verdict}
       </div>
       <p className={q.answerLine}>정답: {answerText}</p>
       {!right && pickedText !== undefined && <p className={q.pickedLine}>고른 답: {pickedText}</p>}
 
       <h1 ref={headingRef} tabIndex={-1} className={`${ui.heading} ${ui.display} ${q.word}`}>
+        <span className={visuallyHidden}>{verdict}. </span>
         {word.word}
       </h1>
       <p className={q.meaning}>{word.meaning}</p>

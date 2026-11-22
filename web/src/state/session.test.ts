@@ -1,7 +1,7 @@
 import type { Word } from "@yk/quiz-core/types";
 import { describe, expect, it } from "vitest";
 import type { Progress } from "./progress";
-import { answer, isFinished, parseIndex, questionAt, routeFor, startRound } from "./session";
+import { answer, isFinished, parseIndex, questionAt, roundDay, routeFor, startRound } from "./session";
 
 const TODAY = "2026-11-23";
 const NOW = Date.UTC(2026, 10, 23, 3);
@@ -183,5 +183,19 @@ describe("routeFor — 잘못된 화면은 맞는 화면으로", () => {
   it("Result: 끝난 판만", () => {
     expect(routeFor(done, "Result", null)).toEqual({ kind: "show" });
     expect(routeFor(three, "Result", null)).toEqual({ kind: "go", to: "Question", index: 3 });
+  });
+});
+
+describe("roundDay — 판을 시작한 날(기기 시간대)", () => {
+  const at = (iso: string): Progress => ({ roundId: "d", wordIds: ["w0"], answers: [], startedAt: Date.parse(iso) });
+
+  it("서울 자정 직전·직후", () => {
+    expect(roundDay(at("2026-11-23T14:59:59Z"))).toBe("2026-11-23");
+    expect(roundDay(at("2026-11-23T15:00:00Z"))).toBe("2026-11-24");
+  });
+
+  it("자정을 넘겨 이어 풀어도 시작한 날 그대로", () => {
+    const p = at("2026-11-23T14:50:00Z");
+    expect(roundDay(answer(p, 0, 0, true))).toBe("2026-11-23");
   });
 });

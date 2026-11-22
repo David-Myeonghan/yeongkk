@@ -16,10 +16,10 @@ function toWord(raw: unknown): Word | null {
   return result;
 }
 
-export async function loadWords(fetchFn: typeof fetch, locale: string): Promise<LoadWordsResult> {
+export async function loadWords(fetchFn: typeof fetch, locale: string, signal?: AbortSignal): Promise<LoadWordsResult> {
   let text: string;
   try {
-    const res = await fetchFn(`/words.${locale}.json`, { cache: "no-cache" });
+    const res = await fetchFn(`/words.${locale}.json`, signal ? { cache: "no-cache", signal } : { cache: "no-cache" });
     if (!res.ok) return { ok: false, reason: "network" };
     text = await res.text();
   } catch {

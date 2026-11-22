@@ -13,6 +13,7 @@ export interface Progress {
 
 export const PROGRESS_KEY = "yk.progress.v1";
 const MAX_AGE_MS = 6 * 3_600_000;
+const MAX_FUTURE_MS = 5 * 60_000;
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const isId = (v: unknown): v is string => typeof v === "string" && v.length > 0;
@@ -57,7 +58,7 @@ export function loadProgress(store: KeyValue, now: number): Progress | null {
     return null;
   }
   const p = toProgress(raw);
-  if (p === null || now - p.startedAt > MAX_AGE_MS) return null;
+  if (p === null || now - p.startedAt > MAX_AGE_MS || p.startedAt - now > MAX_FUTURE_MS) return null;
   return p;
 }
 

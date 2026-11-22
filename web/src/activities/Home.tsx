@@ -1,17 +1,19 @@
 import { AppScreen } from "@stackflow/plugin-basic-ui";
 import { useActivity, useFlow, type ActivityComponentType } from "@stackflow/react";
-import { useMemo } from "react";
+import { useReducer } from "react";
 import { match } from "ts-pattern";
 import { visuallyHidden } from "../app/a11y.css";
 import { useAppData, type FailReason } from "../app/AppData";
 import { useHeadingFocus, useOnce } from "../app/screen";
 import { newRoundId } from "../state/ids";
-import { loadProgress, saveProgress } from "../state/progress";
+import { clearProgress, loadProgress, saveProgress } from "../state/progress";
 import { isFinished, startRound } from "../state/session";
 import { localDate } from "../state/today";
 import * as home from "../styles/home.css";
 import * as ui from "../styles/screen.css";
 import { vars } from "../styles/theme.css";
+
+const EXPIRED = "시간이 지나서 새로 시작해요.";
 
 const failCopy = (reason: FailReason) =>
   match(reason)
@@ -26,24 +28,33 @@ export const Home: ActivityComponentType<"Home"> = () => {
   const { isTop } = useActivity();
   const once = useOnce();
   const headingRef = useHeadingFocus<HTMLHeadingElement>();
-  const saved = useMemo(() => (isTop ? loadProgress(app.store, Date.now()) : null), [isTop, app.store]);
+  const [, recheck] = useReducer((n: number) => n + 1, 0);
+  const saved = isTop ? loadProgress(app.store, Date.now()) : null;
   const resumable = saved && !isFinished(saved) ? saved : null;
 
   const start = () =>
     once(() => {
       if (app.data.status !== "ready") return;
-      const progress = startRound(app.data.words, { today: localDate(new Date()), roundId: newRoundId() });
+      const now = Date.now();
+      const progress = startRound(app.data.words, { today: localDate(new Date(now)), roundId: newRoundId(), now });
       saveProgress(app.store, progress);
       app.setNotice(null);
       push("Question", { index: "0" });
     });
 
-  const resume = () =>
+  const resume = () => {
+    const current = loadProgress(app.store, Date.now());
+    if (!current || isFinished(current)) {
+      clearProgress(app.store);
+      app.setNotice(EXPIRED);
+      recheck();
+      return;
+    }
     once(() => {
-      if (!resumable) return;
       app.setNotice(null);
-      push("Question", { index: String(resumable.answers.length) });
+      push("Question", { index: String(current.answers.length) });
     });
+  };
 
   return (
     <AppScreen backgroundColor={vars.color.background}>
@@ -57,7 +68,7 @@ export const Home: ActivityComponentType<"Home"> = () => {
           </p>
         </div>
         {app.notice && (
-          <p role="status" className={ui.notice}>
+          <p className={ui.notice}>
             {app.notice}
           </p>
         )}

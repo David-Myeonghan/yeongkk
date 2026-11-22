@@ -3,6 +3,7 @@ import { seededRng } from "@yk/quiz-core/rng";
 import { pickRound } from "@yk/quiz-core/round";
 import type { Word } from "@yk/quiz-core/types";
 import type { Progress } from "./progress";
+import { localDate } from "./today";
 
 export function startRound(words: Word[], opts: { today: string; roundId: string; now?: number }): Progress {
   const picked = pickRound(words, { today: opts.today, rng: seededRng(opts.roundId) });
@@ -27,6 +28,11 @@ export function answer(progress: Progress, index: number, choice: number, correc
   if (index !== progress.answers.length || index >= progress.wordIds.length) return progress;
   const wordId = progress.wordIds[index]!;
   return { ...progress, answers: [...progress.answers, { wordId, choice, correct }] };
+}
+
+/** 판을 시작한 날. 시작한 뒤 "오늘"이 필요하면 이것을 쓴다. */
+export function roundDay(progress: Progress): string {
+  return localDate(new Date(progress.startedAt));
 }
 
 export function isFinished(progress: Progress): boolean {

@@ -52,6 +52,13 @@ describe("progress — 저장과 읽기", () => {
     expect(loadProgress(store, T0 + 6 * HOUR + 1)).toBeNull();
   });
 
+  it("startedAt 이 5분보다 더 미래면(기기 시계가 뒤로 감) null, 5분까지는 그대로", () => {
+    const store = memory();
+    saveProgress(store, sample());
+    expect(loadProgress(store, T0 - 5 * 60_000)).toEqual(sample());
+    expect(loadProgress(store, T0 - 5 * 60_000 - 1)).toBeNull();
+  });
+
   it("아무것도 없으면 null", () => {
     expect(loadProgress(memory(), T0)).toBeNull();
   });

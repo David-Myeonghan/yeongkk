@@ -31,7 +31,8 @@ function ResultBody({ view, leave }: { view: QuizView; leave(fn: () => void): vo
   const again = () =>
     leave(() => {
       clearProgress(app.store);
-      const progress = startRound(view.words, { today: localDate(new Date()), roundId: newRoundId() });
+      const now = Date.now();
+      const progress = startRound(view.words, { today: localDate(new Date(now)), roundId: newRoundId(), now });
       saveProgress(app.store, progress);
       replace("Question", { index: "0" });
     });

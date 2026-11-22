@@ -3,7 +3,7 @@ import { useFlow, type ActivityComponentType } from "@stackflow/react";
 import { useEffect, useMemo } from "react";
 import { visuallyHidden } from "../app/a11y.css";
 import { useAppData } from "../app/AppData";
-import { Icon, quizAppBar, useHeadingFocus, useQuizRoute, type QuizView } from "../app/screen";
+import { Icon, quizAppBar, useBehind, useHeadingFocus, useQuizRoute, type QuizView } from "../app/screen";
 import { questionAt } from "../state/session";
 import { funnyWrongOn } from "../state/variants";
 import * as q from "../styles/quiz.css";
@@ -27,6 +27,7 @@ function WordCardBody(props: { view: QuizView; index: number; restart(): void; l
   const app = useAppData();
   const { replace } = useFlow();
   const headingRef = useHeadingFocus<HTMLHeadingElement>();
+  const behind = useBehind();
   const record = view.progress.answers[index];
   const question = useMemo(
     () => questionAt(view.progress, view.words, index, { funnyWrong: funnyWrongOn(app.store, view.progress.roundId) }),
@@ -49,7 +50,7 @@ function WordCardBody(props: { view: QuizView; index: number; restart(): void; l
     leave(() => (last ? replace("Result", {}) : replace("Question", { index: String(index + 1) })));
 
   return (
-    <main className={ui.page}>
+    <main className={ui.page} inert={behind}>
       <div className={`${q.verdict} ${q.verdictTone[right ? "right" : "wrong"]}`} aria-hidden="true">
         <span className={`${q.verdictIcon[right ? "right" : "wrong"]} ${ui.popIn}`}>
           <Icon name={right ? "check" : "cross"} />

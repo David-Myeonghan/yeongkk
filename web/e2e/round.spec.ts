@@ -3,7 +3,8 @@ import { RESULT_COPY } from "../../quiz-core/score";
 import { stubNetwork } from "./support.mjs";
 
 const TOTAL = 10;
-const TIER_LINES = RESULT_COPY["ko-KR"];
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const TIER_LINES = RESULT_COPY["ko-KR"].map(escapeRegExp);
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 const guardNetwork = (page: Page) => {
@@ -25,6 +26,9 @@ async function open(context: BrowserContext, page: Page, options: Parameters<typ
 const heading = (page: Page) => page.getByRole("heading", { level: 1 });
 const choices = (page: Page) => page.getByRole("group", { name: "보기" }).getByRole("button");
 
+// 위에 없는 화면은 inert 라 보조 기술에서 빠진다. inert 밖에서 보이는 제목만 센다.
+const liveHeadings = (page: Page) => page.locator("h1:not([inert] *, [inert])");
+
 // 화면이 바뀌는 동안은 앞 화면이 잠깐 남는다. 자리 잡으면 제목은 하나여야 한다.
 const settled = (page: Page) => expect(heading(page)).toHaveCount(1);
 
@@ -41,6 +45,7 @@ async function answerFirst(page: Page, number: number) {
 
 async function nextCard(page: Page, number: number) {
   await page.getByRole("button", { name: number === TOTAL ? "결과 보기" : "다음" }).click();
+  expect(await liveHeadings(page).count()).toBeLessThanOrEqual(1);
 }
 
 async function playRound(page: Page, count = TOTAL) {
@@ -52,6 +57,7 @@ async function playRound(page: Page, count = TOTAL) {
 }
 
 test("한 판을 끝까지", async ({ context, page }) => {
+  test.slow();
   const { outside } = await open(context, page);
   await playRound(page);
 
@@ -64,6 +70,7 @@ test("한 판을 끝까지", async ({ context, page }) => {
 });
 
 test("5번째에서 새로 고침", async ({ context, page }) => {
+  test.slow();
   const { outside } = await open(context, page);
   await playRound(page, 4);
 
@@ -95,9 +102,23 @@ test("단어 요청 실패", async ({ context, page }) => {
 });
 
 test("이벤트는 화면을 막지 않는다", async ({ context, page }) => {
-  const { outside } = await open(context, page, { api: () => new Promise<void>(() => {}) });
+  test.slow();
+  let answered = 0;
+  const { outside, net } = await open(context, page, {
+    api: (route) => {
+      if (route.request().url().includes("/api/events")) return new Promise<void>(() => {});
+      answered += 1;
+      return route.fulfill({ status: 204 });
+    },
+  });
+  const eventsRequest = page.waitForRequest(/\/api\/events/);
   await playRound(page);
-  await expect(page.getByText(new RegExp(`^\\d+ / ${TOTAL}$`))).toBeVisible();
+  await expect(heading(page).filter({ hasText: `${TOTAL}문제 중` })).toHaveCount(1);
+  await settled(page);
+  await eventsRequest;
+  await expect.poll(() => net.apiCalls.filter((c) => c === "POST /api/events").length).toBeGreaterThanOrEqual(1);
+  expect(answered).toBe(0);
+  await expect(page.getByRole("button", { name: "다시 하기" })).toBeEnabled();
   expect(outside).toEqual([]);
 });
 
@@ -105,6 +126,7 @@ test.describe("공유", () => {
   test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 
   test("공유 — 복사", async ({ context, page }) => {
+    test.slow();
     await context.addInitScript(`Object.defineProperty(navigator, "share", { value: undefined, configurable: true });`);
     const { outside } = await open(context, page);
     await playRound(page);

@@ -5,7 +5,7 @@ import { match } from "ts-pattern";
 import { visuallyHidden } from "../app/a11y.css";
 import { useAppData, type FailReason } from "../app/AppData";
 import { rounds } from "../app/services";
-import { useHeadingFocus, useOnce } from "../app/screen";
+import { useBehind, useHeadingFocus, useOnce } from "../app/screen";
 import { newRoundId } from "../state/ids";
 import { clearProgress, loadProgress, saveProgress } from "../state/progress";
 import { isFinished, startRound } from "../state/session";
@@ -29,6 +29,7 @@ export const Home: ActivityComponentType<"Home"> = () => {
   const { isTop } = useActivity();
   const once = useOnce();
   const headingRef = useHeadingFocus<HTMLHeadingElement>();
+  const behind = useBehind();
   const [, recheck] = useReducer((n: number) => n + 1, 0);
   const saved = isTop ? loadProgress(app.store, Date.now()) : null;
   const resumable = saved && !isFinished(saved) ? saved : null;
@@ -61,7 +62,7 @@ export const Home: ActivityComponentType<"Home"> = () => {
 
   return (
     <AppScreen backgroundColor={vars.color.background}>
-      <main className={`${ui.page} ${ui.rootPage}`} aria-busy={app.data.status === "loading"}>
+      <main className={`${ui.page} ${ui.rootPage}`} inert={behind} aria-busy={app.data.status === "loading"}>
         <div className={home.hero}>
           <h1 ref={headingRef} tabIndex={-1} className={`${ui.heading} ${ui.bubble.brand} ${ui.display}`}>
             뭔말이야

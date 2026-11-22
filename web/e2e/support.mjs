@@ -54,7 +54,7 @@ export async function startPreview() {
 
 /**
  * 단어 · 설정을 가짜 파일로, /api/** 를 204 로 막고, sendBeacon 을 끈다.
- * apiCalls 배열에 요청을 적는다. `api` 가 함수면 /api/** 를 그 함수가 맡는다. 반환값: setWordsFailing(bool).
+ * apiCalls 배열에 요청을 적는다. `api` 가 함수면 /api/** 를 그 함수가 맡는다. 반환값: apiCalls, setWordsFailing(bool).
  */
 export async function stubNetwork(context, { failWords = false, api, apiCalls = [] } = {}) {
   let wordsFailing = failWords;
@@ -68,6 +68,7 @@ export async function stubNetwork(context, { failWords = false, api, apiCalls = 
     return api ? api(route) : route.fulfill({ status: 204 });
   });
   return {
+    apiCalls,
     setWordsFailing: (value) => {
       wordsFailing = value;
     },

@@ -23,6 +23,11 @@ export function useHeadingFocus<T extends HTMLElement>() {
   return ref;
 }
 
+/** 맨 위가 아닌 화면은 전환이 끝나기 전에도 보조 기술에서 빠지게 `inert` 로 쓴다. */
+export function useBehind(): boolean {
+  return !useActivity().isTop;
+}
+
 /** 두 번 눌러도 이동은 한 번. 화면이 다시 맨 위가 되면 풀린다. */
 export function useOnce() {
   const used = useRef(false);

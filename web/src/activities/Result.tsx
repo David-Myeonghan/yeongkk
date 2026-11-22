@@ -8,7 +8,7 @@ import { visuallyHidden } from "../app/a11y.css";
 import { useAppData } from "../app/AppData";
 import { ReportForm } from "../app/ReportForm";
 import { rounds, track } from "../app/services";
-import { quizAppBar, useHeadingFocus, useQuizRoute, type QuizView } from "../app/screen";
+import { quizAppBar, useBehind, useHeadingFocus, useQuizRoute, type QuizView } from "../app/screen";
 import { getBridge } from "../platform/bridge";
 import { shareEnvFrom } from "../platform/shareEnv";
 import { shareDataFor } from "../platform/shareData";
@@ -60,6 +60,7 @@ function ResultBody({ view, leave }: { view: QuizView; leave(fn: () => void): vo
   const app = useAppData();
   const { replace, pop } = useFlow();
   const headingRef = useHeadingFocus<HTMLHeadingElement>();
+  const behind = useBehind();
   const { correct, total } = score(view.progress.answers);
   const copy = RESULT_COPY["ko-KR"][resultTier(correct, total)];
 
@@ -107,7 +108,7 @@ function ResultBody({ view, leave }: { view: QuizView; leave(fn: () => void): vo
     });
 
   return (
-    <main className={ui.page}>
+    <main className={ui.page} inert={behind}>
       <h1 ref={headingRef} tabIndex={-1} className={ui.heading}>
         <span className={visuallyHidden}>
           {total}문제 중 {correct}개 맞혔어요.

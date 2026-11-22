@@ -3,8 +3,8 @@ import { defineConfig } from "@stackflow/config";
 declare module "@stackflow/config" {
   interface Register {
     Home: Record<string, never>;
-    Question: Record<string, never>;
-    WordCard: Record<string, never>;
+    Question: { index: string };
+    WordCard: { index: string };
     Result: Record<string, never>;
   }
 }

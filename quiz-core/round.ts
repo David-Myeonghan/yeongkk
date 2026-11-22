@@ -23,10 +23,11 @@ function utcDay(date: string): number | null {
   return ms / DAY_MS;
 }
 
-function isNew(word: Word, today: number | null, withinDays: number): boolean {
+export function isNew(word: Word, today: string, withinDays = 7): boolean {
   const added = utcDay(word.addedAt);
-  if (today === null || added === null) return false;
-  const age = today - added;
+  const now = utcDay(today);
+  if (now === null || added === null) return false;
+  const age = now - added;
   return age >= 0 && age <= withinDays;
 }
 
@@ -35,7 +36,6 @@ export function pickRound(words: Word[], opts: RoundOptions): Word[] {
   const size = Math.max(0, Math.floor(opts.size ?? 10));
   const newCount = Math.max(0, Math.floor(opts.newCount ?? 3));
   const withinDays = opts.newWithinDays ?? 7;
-  const today = utcDay(opts.today);
 
   const seen = new Set<string>();
   const active = words.filter((w) => {
@@ -44,11 +44,11 @@ export function pickRound(words: Word[], opts: RoundOptions): Word[] {
     return true;
   });
   const fresh = shuffled(
-    active.filter((w) => isNew(w, today, withinDays)),
+    active.filter((w) => isNew(w, opts.today, withinDays)),
     rng,
   );
   const old = shuffled(
-    active.filter((w) => !isNew(w, today, withinDays)),
+    active.filter((w) => !isNew(w, opts.today, withinDays)),
     rng,
   );
 

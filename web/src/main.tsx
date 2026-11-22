@@ -3,6 +3,7 @@ import { PROTOCOL_VERSION } from "@yk/bridge/protocol";
 import { RESULT_COPY } from "@yk/quiz-core/score";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { AppDataProvider } from "./app/AppData";
 import { Stack } from "./stackflow";
 import "./styles/theme.css";
 
@@ -13,6 +14,8 @@ root.dataset.copyLocales = Object.keys(RESULT_COPY).join(",");
 
 createRoot(root).render(
   <StrictMode>
-    <Stack />
+    <AppDataProvider>
+      <Stack />
+    </AppDataProvider>
   </StrictMode>,
 );

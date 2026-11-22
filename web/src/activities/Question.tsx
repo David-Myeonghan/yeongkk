@@ -4,6 +4,8 @@ import { isNew } from "@yk/quiz-core/round";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppData } from "../app/AppData";
 import { Icon, quizAppBar, useHeadingFocus, useQuizRoute, type QuizView } from "../app/screen";
+import { getBridge } from "../platform/bridge";
+import { hapticForAnswer } from "../platform/haptics";
 import { saveProgress } from "../state/progress";
 import { answer, questionAt, roundDay } from "../state/session";
 import { funnyWrongOn } from "../state/variants";
@@ -60,6 +62,7 @@ function QuestionBody(props: { view: QuizView; index: number; restart(): void; l
     setPicked(choice);
     const correct = choice === question.answerIndex;
     saveProgress(app.store, answer(view.progress, index, choice, correct));
+    hapticForAnswer(getBridge(), correct);
     app.announce(correct ? "맞았어요." : `아쉬워요. 정답은 ${answerText}.`);
   };
 

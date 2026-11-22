@@ -5,12 +5,20 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { AppDataProvider } from "./app/AppData";
 import { Stack } from "./stackflow";
+import { getBridge } from "./platform/bridge";
+import { hostKind } from "./platform/hostKind";
 import "./styles/theme.css";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("#root 없음");
 root.dataset.protocol = String(PROTOCOL_VERSION);
 root.dataset.copyLocales = Object.keys(RESULT_COPY).join(",");
+
+void getBridge()
+  .ready()
+  .then((info) => {
+    document.documentElement.dataset.host = hostKind(info);
+  });
 
 createRoot(root).render(
   <StrictMode>

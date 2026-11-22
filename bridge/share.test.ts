@@ -38,9 +38,35 @@ describe("share 대신하기 가지", () => {
     expect(await share(bridge, card, { webShare })).toEqual({ via: "web-share", completed: true });
   });
 
-  it("앱 호출이 BridgeError 로 끝나도 넘어간다", async () => {
-    const bridge = { ...browser(), call: () => Promise.reject(new BridgeError("TIMEOUT")) };
+  it.each(["UNSUPPORTED", "FAILED", "NO_HOST", "BAD_REQUEST"])("앱 호출이 %s 로 끝나도 넘어간다", async (code) => {
+    const bridge = { ...browser(), call: () => Promise.reject(new BridgeError(code)) };
     expect(await share(bridge, card, {})).toEqual({ via: "none", completed: false });
+  });
+
+  it("앱 호출은 60초까지 기다린다고 요청한다", async () => {
+    const call = vi.fn(async () => ({ completed: true }));
+    await share({ ...browser(), call }, card, {});
+    expect(call).toHaveBeenCalledWith("share", card, { timeoutMs: 60000 });
+  });
+
+  it("앱이 60초 동안 답이 없으면 두 번째 시트나 복사 없이 native/false 로 끝낸다", async () => {
+    vi.useFakeTimers();
+    try {
+      const webShare = vi.fn(async () => undefined);
+      const clipboardWrite = vi.fn(async () => undefined);
+      const bridge = createWebBridge({ injected: info, post: () => undefined });
+      await bridge.ready();
+      let result: unknown;
+      void share(bridge, card, { webShare, clipboardWrite }).then((r) => { result = r; });
+      await vi.advanceTimersByTimeAsync(59999);
+      expect(result).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(result).toEqual({ via: "native", completed: false });
+      expect(webShare).not.toHaveBeenCalled();
+      expect(clipboardWrite).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("text 도 url 도 없으면 빈 글을 복사하지 않는다", async () => {

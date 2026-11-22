@@ -46,9 +46,9 @@ test("모르는 키는 거절", () => { expect(checkConfig(cfg({ ...good(), feat
 test("features 칸이 빠지면 거절", () => {
   expect(checkConfig(cfg({ ...good(), features: { report: true, ask: false } })).length).toBeGreaterThan(0);
 });
-test("api 는 / 로 시작하거나 https:// 만", () => {
-  for (const ok of ["/api", "https://example.com/api"]) expect(checkConfig(cfg(good({ api: ok }))), ok).toEqual([]);
-  for (const bad of ["//x", "//evil.com", "/\\evil.com", "/\t/evil.com", "/api\\x", "https://", "http://example.com", "", "api", "/" + "a".repeat(200)]) expect(checkConfig(cfg(good({ api: bad }))).length, bad).toBeGreaterThan(0);
+test("api 는 / 로 시작하는 경로만", () => {
+  for (const ok of ["/api", "/api/v2"]) expect(checkConfig(cfg(good({ api: ok }))), ok).toEqual([]);
+  for (const bad of ["https://example.com/api", "//x", "//evil.com", "/\\evil.com", "/\t/evil.com", "/api\\x", "https://", "http://example.com", "", "api", "/" + "a".repeat(200)]) expect(checkConfig(cfg(good({ api: bad }))).length, bad).toBeGreaterThan(0);
 });
 test("JSON 아니면 형식 문제", () => {
   const ps = checkConfig({ ...cfg(undefined), parseError: "boom" });
@@ -128,4 +128,22 @@ test("설정이 틀리고 단어 묶기도 실패하면 둘 다 보인다", () =
   expect(ps.some(p => p.rule === "묶기")).toBe(true);
   expect(ps.filter(p => p.file === "config/remote/ko-KR.json")).toHaveLength(1);
   expect(ps.find(p => p.rule === "묶기")?.message).not.toContain("설정 파일");
+});
+
+const funnyWrong = (...names: string[]) => ({
+  experiments: [{ id: "funny-wrong", enabled: true, variants: names.map(name => ({ name, weight: 1 })) }],
+});
+test("funny-wrong 변형 이름은 on · off 두 개여야 한다", () => {
+  expect(checkConfig(cfg(good(funnyWrong("off", "on"))))).toEqual([]);
+  for (const names of [["a", "b"], ["on"], ["on", "off", "split"]]) {
+    const ps = checkConfig(cfg(good(funnyWrong(...names))));
+    expect(ps.length, names.join()).toBe(1);
+    expect(ps[0]).toMatchObject({ file: "config/remote/ko-KR.json", rule: "실험" });
+    expect(ps[0].message).toContain("funny-wrong");
+    expect(ps[0].message).toContain("on");
+  }
+});
+test("다른 실험의 변형 이름은 막지 않는다", () => {
+  const other = { experiments: [{ id: "cta-copy", enabled: true, variants: [{ name: "a", weight: 1 }, { name: "b", weight: 1 }] }] };
+  expect(checkConfig(cfg(good(other)))).toEqual([]);
 });

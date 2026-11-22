@@ -16,6 +16,9 @@ const PHONE = { width: 390, height: 844 };
 const SMALL = { width: 320, height: 568 };
 const SETTLE_MS = 700;
 
+const apiCalls = [];
+// Chromium 은 sendBeacon 을 page.route 로 못 가로챈다. 밖으로 나가지 않게 막는다.
+const NO_NETWORK_BEACON = `navigator.sendBeacon = () => true;`;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function freePort() {
@@ -66,11 +69,16 @@ async function openPage(browser, base, { colorScheme, viewport, failWords = fals
     deviceScaleFactor: 2,
   });
   const page = await context.newPage();
+  await page.addInitScript(NO_NETWORK_BEACON);
   if (initScript) await page.addInitScript(initScript);
   await page.clock.setFixedTime(NOW);
   await page.route("**/words.ko-KR.json", (route) =>
     failWords ? route.abort() : route.fulfill({ contentType: "application/json", body: wordsBody }),
   );
+  await context.route("**/api/**", (route) => {
+    apiCalls.push(`${route.request().method()} ${new URL(route.request().url()).pathname}`);
+    return route.fulfill({ status: 204 });
+  });
   await page.route("**/config.ko-KR.json", (route) => route.fulfill({ contentType: "application/json", body: configBody }));
   await page.goto(base);
   return { context, page };
@@ -141,6 +149,12 @@ async function shootPhone(browser, base, colorScheme) {
     await page.getByRole("button", { name: "결과 보기" }).click();
     await sleep(SETTLE_MS);
     await shot(page, s("result"));
+
+    await page.getByPlaceholder("요즘 들은 말 알려 주기").fill("갑분싸");
+    await shot(page, s("result-report-typed"));
+    await page.getByRole("button", { name: "보내기" }).click();
+    await page.locator("p", { hasText: "고마워요. 살펴볼게요." }).waitFor();
+    await shot(page, s("result-report-sent"));
     await context.close();
   }
 
@@ -207,6 +221,7 @@ try {
   await shootPhone(browser, base, "dark");
   await shootSmall(browser, base);
   await shootShare(browser, base);
+  console.log(`api calls intercepted (none left the machine): ${apiCalls.join(", ") || "none"}`);
 } catch (error) {
   console.error(error);
   process.exitCode = 1;

@@ -4,6 +4,7 @@ import { useReducer } from "react";
 import { match } from "ts-pattern";
 import { visuallyHidden } from "../app/a11y.css";
 import { useAppData, type FailReason } from "../app/AppData";
+import { rounds } from "../app/services";
 import { useHeadingFocus, useOnce } from "../app/screen";
 import { newRoundId } from "../state/ids";
 import { clearProgress, loadProgress, saveProgress } from "../state/progress";
@@ -38,6 +39,7 @@ export const Home: ActivityComponentType<"Home"> = () => {
       const now = Date.now();
       const progress = startRound(app.data.words, { today: localDate(new Date(now)), roundId: newRoundId(), now });
       saveProgress(app.store, progress);
+      rounds.begin({ progress, words: app.data.words, resumed: false });
       app.setNotice(null);
       push("Question", { index: "0" });
     });
@@ -51,6 +53,7 @@ export const Home: ActivityComponentType<"Home"> = () => {
       return;
     }
     once(() => {
+      if (app.data.status === "ready") rounds.begin({ progress: current, words: app.data.words, resumed: true });
       app.setNotice(null);
       push("Question", { index: String(current.answers.length) });
     });

@@ -190,3 +190,45 @@ export const shareUrl = style({
   overflowWrap: "anywhere",
   wordBreak: "break-all",
 });
+
+export const report = style({ display: "flex", flexDirection: "column", gap: vars.space.sm });
+
+export const reportRow = style({ display: "flex", gap: vars.space.sm, alignItems: "stretch" });
+
+export const reportInput = style({
+  flex: 1,
+  minWidth: 0,
+  minHeight: vars.tap.minHeight,
+  paddingInline: vars.space.md,
+  border: `2px solid ${vars.color.line}`,
+  borderRadius: vars.radius.md,
+  background: vars.color.surface,
+  color: vars.color.text,
+  fontFamily: "inherit",
+  fontSize: vars.fontSize.md,
+  selectors: {
+    "&::placeholder": { color: vars.color.muted, opacity: 1 },
+    "&:focus-visible": { outline: `3px solid ${vars.color.accent}`, outlineOffset: "2px" },
+  },
+});
+
+export const reportSend = style({
+  flexShrink: 0,
+  minHeight: vars.tap.minHeight,
+  paddingInline: vars.space.md,
+  border: `2px solid ${vars.color.line}`,
+  borderRadius: vars.radius.md,
+  background: "transparent",
+  color: vars.color.text,
+  fontFamily: "inherit",
+  fontSize: vars.fontSize.md,
+  fontWeight: 700,
+  cursor: "pointer",
+  selectors: {
+    "&:focus-visible": { outline: `3px solid ${vars.color.accent}`, outlineOffset: "2px" },
+    "&:active:not(:disabled)": { background: vars.color.sunken },
+    "&:disabled": { cursor: "default", opacity: 0.6 },
+  },
+});
+
+export const reportNote = style({ margin: 0, fontSize: vars.fontSize.sm, fontWeight: 600, color: vars.color.muted });

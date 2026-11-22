@@ -3,9 +3,10 @@ import type { Word } from "@yk/quiz-core/types";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { LoadWordsResult } from "../data/loadWords";
 import type { KeyValue } from "../state/progress";
-import { createStore } from "../state/storage";
 import { visuallyHidden } from "./a11y.css";
+import { setLiveConfig } from "./liveConfig";
 import { loadAppData, type TimerPair } from "./loadAppData";
+import { appStore } from "./services";
 
 export type FailReason = Extract<LoadWordsResult, { ok: false }>["reason"];
 
@@ -36,7 +37,7 @@ const browserTimers: TimerPair = {
 
 export function AppDataProvider(props: { children: ReactNode; fetchFn?: typeof fetch; store?: KeyValue }) {
   const [fetchFn] = useState(() => props.fetchFn ?? ((...args: Parameters<typeof fetch>) => fetch(...args)));
-  const [store] = useState(() => props.store ?? createStore());
+  const [store] = useState(() => props.store ?? appStore);
   const [data, setData] = useState<DataState>({ status: "loading" });
   const [config, setConfig] = useState<RemoteConfig>(() => structuredClone(DEFAULT_CONFIG));
   const [attempt, setAttempt] = useState(0);
@@ -47,7 +48,10 @@ export function AppDataProvider(props: { children: ReactNode; fetchFn?: typeof f
     () =>
       loadAppData(fetchFn, LOCALE, browserTimers, {
         words: (r) => setData(r.ok ? { status: "ready", words: r.words } : { status: "failed", reason: r.reason }),
-        config: setConfig,
+        config: (next) => {
+          setLiveConfig(next);
+          setConfig(next);
+        },
       }),
     [fetchFn, attempt],
   );

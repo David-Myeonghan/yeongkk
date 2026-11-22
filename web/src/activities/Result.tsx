@@ -1,16 +1,19 @@
 import { AppScreen } from "@stackflow/plugin-basic-ui";
 import { useFlow, type ActivityComponentType } from "@stackflow/react";
-import { share, type ShareData } from "@yk/bridge/share";
+import { share, type ShareData, type ShareResult } from "@yk/bridge/share";
 import { RESULT_COPY, resultTier, score } from "@yk/quiz-core/score";
 import { useEffect, useRef, useState } from "react";
 import { match } from "ts-pattern";
 import { visuallyHidden } from "../app/a11y.css";
 import { useAppData } from "../app/AppData";
+import { ReportForm } from "../app/ReportForm";
+import { rounds, track } from "../app/services";
 import { quizAppBar, useHeadingFocus, useQuizRoute, type QuizView } from "../app/screen";
 import { getBridge } from "../platform/bridge";
 import { shareEnvFrom } from "../platform/shareEnv";
 import { shareDataFor } from "../platform/shareData";
 import { newRoundId } from "../state/ids";
+import { markRoundCompleted } from "../state/completed";
 import { clearProgress, saveProgress } from "../state/progress";
 import { startRound } from "../state/session";
 import { localDate } from "../state/today";
@@ -30,16 +33,17 @@ function manualNote(data: ShareData): ShareNote {
     : { kind: "manual", hint: MANUAL_TEXT_HINT, copyable: data.text ?? "" };
 }
 
-async function shareResult(data: ShareData): Promise<ShareNote> {
+async function shareResult(data: ShareData): Promise<{ note: ShareNote; result: ShareResult }> {
   try {
     const result = await share(getBridge(), data, shareEnvFrom(navigator));
-    return match(result.via)
+    const note = match(result.via)
       .with("clipboard", () => ({ kind: "copied" }) as const)
       .with("none", () => manualNote(data))
       .with("native", "web-share", () => null)
       .exhaustive();
+    return { note, result };
   } catch {
-    return manualNote(data);
+    return { note: manualNote(data), result: { via: "none", completed: false } };
   }
 }
 
@@ -65,6 +69,11 @@ function ResultBody({ view, leave }: { view: QuizView; leave(fn: () => void): vo
   const shareButtonRef = useRef<HTMLButtonElement>(null);
   const refocus = useRef(false);
 
+  const { roundId } = view.progress;
+  useEffect(() => {
+    if (markRoundCompleted(app.store, roundId)) track("round_complete", { correct, total });
+  }, [app.store, roundId, correct, total]);
+
   useEffect(() => {
     if (!sharing && refocus.current) {
       refocus.current = false;
@@ -76,7 +85,9 @@ function ResultBody({ view, leave }: { view: QuizView; leave(fn: () => void): vo
     if (sharing) return;
     setSharing(true);
     setNote(null);
-    void shareResult(shareDataFor(correct, total, window.location.origin)).then((next) => {
+    track("share_click");
+    void shareResult(shareDataFor(correct, total, window.location.origin)).then(({ note: next, result }) => {
+      track("share_done", { via: result.via, completed: result.completed });
       setNote(next);
       if (next?.kind === "copied") app.announce(COPIED);
       if (next?.kind === "manual") app.announce(next.hint);
@@ -91,6 +102,7 @@ function ResultBody({ view, leave }: { view: QuizView; leave(fn: () => void): vo
       const now = Date.now();
       const progress = startRound(view.words, { today: localDate(new Date(now)), roundId: newRoundId(), now });
       saveProgress(app.store, progress);
+      rounds.begin({ progress, words: view.words, resumed: false });
       replace("Question", { index: "0" });
     });
 
@@ -122,6 +134,7 @@ function ResultBody({ view, leave }: { view: QuizView; leave(fn: () => void): vo
         <button type="button" className={ui.button.secondary} onClick={() => leave(() => pop())}>
           처음으로
         </button>
+        {app.config.features.report && <ReportForm />}
       </div>
     </main>
   );

@@ -34,7 +34,10 @@ function QuestionBody(props: { view: QuizView; index: number; restart(): void; l
   const { replace } = useFlow();
   const { isTop } = useActivity();
   const headingRef = useHeadingFocus<HTMLHeadingElement>();
-  const question = useMemo(() => questionAt(view.progress, view.words, index, { funnyWrong: funnyWrongOn() }), [view, index]);
+  const question = useMemo(
+    () => questionAt(view.progress, view.words, index, { funnyWrong: funnyWrongOn(app.store, view.progress.roundId) }),
+    [app.store, view, index],
+  );
   const word = useMemo(() => view.words.find((w) => w.id === question?.wordId), [view.words, question]);
   const [picked, setPicked] = useState<number | null>(null);
   const pickedRef = useRef(false);

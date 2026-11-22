@@ -1,4 +1,36 @@
-/** 엉뚱한 오답 보기. 실험 연결 task 가 이 함수 몸통을 바꾼다. 제품 기본값은 켜짐. */
-export function funnyWrongOn(): boolean {
-  return true;
+import type { KeyValue } from "./progress";
+
+export const ROUND_FLAGS_KEY = "yk.round-flags.v1";
+
+export interface RoundFlags {
+  roundId: string;
+  funnyWrong: boolean;
+  variant: string | null;
+}
+
+export function loadRoundFlags(store: KeyValue, roundId: string): RoundFlags | null {
+  try {
+    const text = store.get(ROUND_FLAGS_KEY);
+    if (text === null) return null;
+    const raw: unknown = JSON.parse(text);
+    if (typeof raw !== "object" || raw === null) return null;
+    const flags = raw as Record<string, unknown>;
+    if (flags.roundId !== roundId || typeof flags.funnyWrong !== "boolean") return null;
+    return { roundId, funnyWrong: flags.funnyWrong, variant: typeof flags.variant === "string" ? flags.variant : null };
+  } catch {
+    return null;
+  }
+}
+
+export function saveRoundFlags(store: KeyValue, flags: RoundFlags): void {
+  try {
+    store.set(ROUND_FLAGS_KEY, JSON.stringify(flags));
+  } catch {
+    // 저장이 막히면 이 판은 기본(켜짐)으로 돈다
+  }
+}
+
+/** 판이 시작될 때 정해 둔 값. 없으면(옛 판) 제품 기본값인 켜짐. */
+export function funnyWrongOn(store: KeyValue, roundId: string): boolean {
+  return loadRoundFlags(store, roundId)?.funnyWrong ?? true;
 }

@@ -102,7 +102,7 @@ function ResultBody({ view, leave }: { view: QuizView; leave(fn: () => void): vo
       const now = Date.now();
       const progress = startRound(view.words, { today: localDate(new Date(now)), roundId: newRoundId(), now });
       saveProgress(app.store, progress);
-      rounds.begin({ progress, words: view.words, resumed: false });
+      rounds.begin({ store: app.store, progress, words: view.words, resumed: false });
       replace("Question", { index: "0" });
     });
 

@@ -1,5 +1,6 @@
 import { DEFAULT_CONFIG } from "@yk/quiz-core/config";
 import { getBridge } from "../platform/bridge";
+import { createExperiments } from "../experiments";
 import { newRoundId } from "../state/ids";
 import { createRoundTracker } from "../state/rounds";
 import { createStore } from "../state/storage";
@@ -31,4 +32,8 @@ export const telemetry = createTelemetry({
 
 export const track = telemetry.track;
 
-export const rounds = createRoundTracker({ track });
+const experiments = createExperiments({ getConfig: getLiveConfig, anonId, track });
+
+export const variantOf = experiments.variantOf;
+
+export const rounds = createRoundTracker({ track, ...experiments });

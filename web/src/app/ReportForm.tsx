@@ -1,9 +1,10 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { match } from "ts-pattern";
 import * as q from "../styles/quiz.css";
 import { submitReport, type ReportResult } from "../telemetry/report";
 import { visuallyHidden } from "./a11y.css";
 import { useAppData } from "./AppData";
+import { shouldBlockEnter } from "./imeEnter";
 import { anonId } from "./services";
 
 const LOCALE = "ko-KR";
@@ -43,6 +44,10 @@ export function ReportForm() {
       });
   };
 
+  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (shouldBlockEnter({ key: event.key, isComposing: event.nativeEvent.isComposing, keyCode: event.keyCode })) event.preventDefault();
+  };
+
   return (
     <form className={q.report} onSubmit={onSubmit}>
       <div className={q.reportRow}>
@@ -61,6 +66,7 @@ export function ReportForm() {
           autoCapitalize="off"
           spellCheck={false}
           onChange={(e) => setWord(e.target.value)}
+          onKeyDown={onKeyDown}
         />
         <button type="submit" className={q.reportSend} disabled={sending}>
           보내기

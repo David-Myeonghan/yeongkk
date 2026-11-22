@@ -1,10 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildBody, eventsUrl, sendEvents, type Envelope } from "./send";
 import type { QueuedEvent } from "./queue";
 
 const envelope: Envelope = { anonId: "anon-12345678", locale: "ko-KR", host: "browser" };
 const events: QueuedEvent[] = [{ name: "app_open", at: 1, props: { fromShare: false } }, { name: "share_click", at: 2 }];
 const respond = (status: number) => vi.fn<typeof fetch>(async () => new Response(null, { status }));
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("sendEvents", () => {
   it("POST {api}/events 로 JSON 을 보낸다", async () => {
@@ -21,6 +23,32 @@ describe("sendEvents", () => {
       host: "browser",
       events: [{ name: "app_open", at: 1, props: { fromShare: false } }, { name: "share_click", at: 2 }],
     });
+  });
+
+  it("Referer 를 싣지 않는다", async () => {
+    const fetchFn = respond(204);
+    await sendEvents(fetchFn, "/api", envelope, events);
+    expect(fetchFn.mock.calls[0]![1]?.referrerPolicy).toBe("no-referrer");
+  });
+
+  it("10초 제한 신호를 싣는다", async () => {
+    const spy = vi.spyOn(AbortSignal, "timeout");
+    const fetchFn = respond(204);
+    await sendEvents(fetchFn, "/api", envelope, events);
+    expect(spy).toHaveBeenCalledWith(10_000);
+    expect(fetchFn.mock.calls[0]![1]?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("신호를 무시하고 멈춘 fetch 도 10초 뒤 false", async () => {
+    const controller = new AbortController();
+    vi.spyOn(AbortSignal, "timeout").mockReturnValue(controller.signal);
+    const fetchFn = vi.fn<typeof fetch>(() => new Promise<Response>(() => {}));
+    let result: boolean | undefined;
+    void sendEvents(fetchFn, "/api", envelope, events).then((r) => (result = r));
+    await Promise.resolve();
+    expect(result).toBeUndefined();
+    controller.abort();
+    await vi.waitFor(() => expect(result).toBe(false));
   });
 
   it("앱이면 host 와 appVersion 이 같이 간다", async () => {

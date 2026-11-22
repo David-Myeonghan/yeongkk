@@ -19,6 +19,9 @@ const isQueued = (v: unknown): v is QueuedEvent =>
 
 const encoder = new TextEncoder();
 const byteLength = (value: unknown): number => encoder.encode(JSON.stringify(value)).length;
+/** 배열 `[`·`]` 두 글자 + 이벤트 + 쉼표 한 글자. 한 묶음에 이 크기만 들어갈 수 있다. */
+const chunkCost = (e: QueuedEvent): number => byteLength(e) + 1;
+const EMPTY_CHUNK = 2;
 
 export interface QueueOptions {
   send: (batch: QueuedEvent[]) => Promise<boolean>;
@@ -67,10 +70,10 @@ export function createQueue(opts: QueueOptions) {
   const nextChunk = (): QueuedEvent[] => {
     const all = load();
     const chunk: QueuedEvent[] = [];
-    let bytes = 2;
+    let bytes = EMPTY_CHUNK;
     for (const e of all) {
       if (chunk.length >= maxPerRequest) break;
-      const size = byteLength(e) + 1;
+      const size = chunkCost(e);
       if (bytes + size > maxBytes) break;
       chunk.push(e);
       bytes += size;
@@ -80,7 +83,7 @@ export function createQueue(opts: QueueOptions) {
 
   const dropOversized = (): boolean => {
     const first = load()[0];
-    if (!first || byteLength([first]) <= maxBytes) return false;
+    if (!first || EMPTY_CHUNK + chunkCost(first) <= maxBytes) return false;
     events = load().slice(1);
     persist();
     return true;

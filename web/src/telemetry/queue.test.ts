@@ -206,4 +206,21 @@ describe("createQueue", () => {
     await q.flush();
     expect(send.mock.calls.flatMap((c) => ats(c[0]))).toEqual([1]);
   });
+
+  it("maxBytes - 2 바이트짜리 이벤트는 버리고 뒤의 작은 것을 보낸다", async () => {
+    const send = vi.fn<(b: QueuedEvent[]) => Promise<boolean>>(async () => true);
+    const q = createQueue({ send, store: memoryStore(), maxBytes: 100 });
+    const filler = (n: number): QueuedEvent => {
+      const base = { name: "app_open", at: 1, props: { a: "" } } as const;
+      const pad = n - JSON.stringify(base).length;
+      return { ...base, props: { a: "x".repeat(pad) } };
+    };
+    const exact = filler(98);
+    expect(JSON.stringify(exact).length).toBe(98);
+    q.push(exact);
+    q.push(ev(2));
+    await q.flush();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(ats(send.mock.calls[0]![0])).toEqual([2]);
+  });
 });

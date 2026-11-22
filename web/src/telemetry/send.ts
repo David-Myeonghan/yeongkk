@@ -1,4 +1,5 @@
 import type { QueuedEvent } from "./queue";
+import { deadline } from "./timeout";
 
 export interface Envelope {
   anonId: string;
@@ -22,17 +23,24 @@ export function buildBody(envelope: Envelope, events: QueuedEvent[]): string {
   });
 }
 
-/** 204 · 400 · 413 은 서버가 이 묶음을 다시는 안 받으니 보낸 것으로 친다(버림). 나머지는 나중에 다시. */
+/** 204 · 400 · 413 은 서버가 이 묶음을 다시는 안 받으니 보낸 것으로 친다(버림). 나머지는 나중에 다시. 10초 안에 답이 없으면 실패. */
 export async function sendEvents(fetchFn: typeof fetch, api: string, envelope: Envelope, events: QueuedEvent[]): Promise<boolean> {
+  const limit = deadline();
   try {
-    const res = await fetchFn(eventsUrl(api), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: buildBody(envelope, events),
-      keepalive: true,
-    });
-    return res.status === 204 || res.status === 400 || res.status === 413;
+    const res = await limit.race(
+      fetchFn(eventsUrl(api), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: buildBody(envelope, events),
+        keepalive: true,
+        referrerPolicy: "no-referrer",
+        signal: limit.signal,
+      }),
+    );
+    return res !== null && (res.status === 204 || res.status === 400 || res.status === 413);
   } catch {
     return false;
+  } finally {
+    limit.clear();
   }
 }

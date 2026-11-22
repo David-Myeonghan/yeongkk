@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { KeyValue } from "../state/progress";
 import { createTelemetry, sanitizeProps, type TelemetryDeps } from "./events";
 
@@ -6,6 +6,8 @@ const memoryStore = (): KeyValue => {
   const data = new Map<string, string>();
   return { get: (k) => data.get(k) ?? null, set: (k, v) => void data.set(k, v), remove: (k) => void data.delete(k) };
 };
+
+afterEach(() => vi.restoreAllMocks());
 
 function setup(over: Partial<TelemetryDeps> = {}) {
   const timers = new Map<number, { fn: () => void; ms: number }>();
@@ -208,5 +210,24 @@ describe("leave (페이지를 떠날 때)", () => {
     await telemetry.flush();
     expect(beacon).not.toHaveBeenCalled();
     expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("보내기가 멈춘 채 떠나면, 10초 제한으로 끊긴 뒤 beacon 으로 한 번 보낸다", async () => {
+    const controller = new AbortController();
+    vi.spyOn(AbortSignal, "timeout").mockReturnValue(controller.signal);
+    const beacon = vi.fn<(url: string, body: string) => boolean>(() => true);
+    const fetchFn = vi.fn<typeof fetch>(() => new Promise<Response>(() => {}));
+    const { telemetry } = setup({ beacon, fetchFn });
+    telemetry.track("share_click");
+    const first = telemetry.flush();
+    telemetry.leave();
+    await Promise.resolve();
+    expect(beacon).not.toHaveBeenCalled();
+    controller.abort();
+    await first;
+    await telemetry.flush();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(beacon).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(beacon.mock.calls[0]![1]).events[0].name).toBe("share_click");
   });
 });

@@ -21,6 +21,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test -w api
       - run: npm run typecheck -w api
+      - run: npm run typecheck -w web
+      - run: npm run build -w web
   # collect job 은 2부 Task 17 (collect/ 생성) 뒤에 주석을 풀어 켠다.
   # collect:
   #   runs-on: ubuntu-latest

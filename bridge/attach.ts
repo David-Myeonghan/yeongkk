@@ -8,7 +8,9 @@ export type BridgeWindow = Window & {
 function readInjected(view: BridgeWindow["ReactNativeWebView"]): unknown {
   try {
     const json = view?.injectedObjectJson?.();
-    return typeof json === "string" ? (JSON.parse(json) as unknown) : undefined;
+    if (typeof json !== "string" || json === "") return undefined;
+    const parsed: unknown = JSON.parse(json);
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? parsed : undefined;
   } catch {
     return undefined;
   }

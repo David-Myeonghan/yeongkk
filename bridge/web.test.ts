@@ -45,4 +45,53 @@ describe("web bridge 세부", () => {
     await expect(bridge.call("share")).rejects.toMatchObject({ code: "FAILED" });
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it("ready 전에 부른 call 은 인사가 끝난 뒤에야 보낸다", async () => {
+    const sent: string[] = [];
+    const bridge = createWebBridge({ post: (raw) => { sent.push(raw); } });
+    const p = bridge.call("share");
+    const assertion = expect(p).rejects.toMatchObject({ code: "NO_HOST" });
+    expect(sent).toHaveLength(1);
+    expect(JSON.parse(sent[0]!)).toMatchObject({ name: "hello" });
+    await vi.advanceTimersByTimeAsync(300);
+    await assertion;
+    expect(sent).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("인사 뒤에 기능이 있으면 그때 보낸다", async () => {
+    const sent: string[] = [];
+    const bridge = createWebBridge({
+      post: (raw) => {
+        sent.push(raw);
+        const req = JSON.parse(raw) as { id: string; name: string };
+        if (req.name === "hello") queueMicrotask(() => bridge.receive(response.ok(req.id, injected)));
+      },
+    });
+    const p = bridge.call("share");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sent.map((s) => (JSON.parse(s) as { name: string }).name)).toEqual(["hello", "share"]);
+    bridge.receive(response.ok((JSON.parse(sent[1]!) as { id: string }).id, "done"));
+    await expect(p).resolves.toBe("done");
+  });
+
+  it("call 마다 timeoutMs 를 줄 수 있다", async () => {
+    const bridge = createWebBridge({ injected, post: () => undefined }, { callTimeoutMs: 5000 });
+    await bridge.ready();
+    const p = bridge.call("share", undefined, { timeoutMs: 20 });
+    const assertion = expect(p).rejects.toMatchObject({ code: "TIMEOUT" });
+    await vi.advanceTimersByTimeAsync(20);
+    await assertion;
+  });
+
+  it("helloTimeoutMs 를 바꿀 수 있다", async () => {
+    const bridge = createWebBridge({ post: () => undefined }, { helloTimeoutMs: 40 });
+    let done = false;
+    void bridge.ready().then(() => { done = true; });
+    await vi.advanceTimersByTimeAsync(39);
+    expect(done).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(done).toBe(true);
+    expect(bridge.host()).toBeNull();
+  });
 });

@@ -1,4 +1,3 @@
-import { BridgeError } from "./protocol";
 import type { WebBridge } from "./web";
 
 export interface ShareData {
@@ -17,14 +16,14 @@ export interface ShareResult {
   completed: boolean;
 }
 
-const isAbort = (e: unknown): boolean => e instanceof Error && e.name === "AbortError";
+const isAbort = (e: unknown): boolean => typeof e === "object" && e !== null && (e as { name?: unknown }).name === "AbortError";
 
 export async function share(bridge: WebBridge, data: ShareData, env: ShareEnv): Promise<ShareResult> {
   try {
     const result = await bridge.call<{ completed?: boolean } | undefined>("share", data);
     return { via: "native", completed: result?.completed ?? true };
-  } catch (e) {
-    if (!(e instanceof BridgeError)) throw e;
+  } catch {
+    // any failure of the app call falls through to the web
   }
 
   if (env.webShare) {
@@ -36,9 +35,10 @@ export async function share(bridge: WebBridge, data: ShareData, env: ShareEnv): 
     }
   }
 
-  if (env.clipboardWrite) {
+  const copyText = [data.text, data.url].filter(Boolean).join(" ");
+  if (env.clipboardWrite && copyText) {
     try {
-      await env.clipboardWrite([data.text, data.url].filter(Boolean).join(" "));
+      await env.clipboardWrite(copyText);
       return { via: "clipboard", completed: true };
     } catch {
       return { via: "none", completed: false };

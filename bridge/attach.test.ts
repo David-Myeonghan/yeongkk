@@ -67,6 +67,42 @@ describe("attachToWindow", () => {
     expect(await bridge.ready()).toMatchObject({ appVersion: "1.0.0" });
   });
 
+  it("injectedObjectJson 이 \"null\" 을 주면 hello 로 묻는다", async () => {
+    const post = vi.fn();
+    const bridge = attachToWindow(asWin({ ReactNativeWebView: { postMessage: post, injectedObjectJson: () => "null" } }));
+    const p = bridge.ready();
+    await vi.runAllTimersAsync();
+    await p;
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["", "5", "[1]", "\"text\""])("injectedObjectJson 이 %j 이면 hello 로 묻는다", async (json) => {
+    const post = vi.fn();
+    const bridge = attachToWindow(asWin({ ReactNativeWebView: { postMessage: post, injectedObjectJson: () => json } }));
+    const p = bridge.ready();
+    await vi.runAllTimersAsync();
+    await p;
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+
+  it("injectedObjectJson 함수가 아예 없으면 hello 로 묻는다", async () => {
+    const post = vi.fn();
+    const bridge = attachToWindow(asWin({ ReactNativeWebView: { postMessage: post } }));
+    const p = bridge.ready();
+    await vi.runAllTimersAsync();
+    await p;
+    expect(post).toHaveBeenCalledTimes(1);
+  });
+
+  it("규약 2 객체면 앱 없음으로 끝내고 hello 를 보내지 않는다", async () => {
+    const post = vi.fn();
+    const bridge = attachToWindow(asWin({
+      ReactNativeWebView: { postMessage: post, injectedObjectJson: () => JSON.stringify({ ...info, protocol: 2 }) },
+    }));
+    expect(await bridge.ready()).toBeNull();
+    expect(post).not.toHaveBeenCalled();
+  });
+
   it("win.__YK_BRIDGE__.receive 가 걸린다", () => {
     const win: Record<string, unknown> = {};
     attachToWindow(asWin(win));

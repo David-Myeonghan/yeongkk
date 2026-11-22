@@ -2,6 +2,7 @@
 
 웹 퀴즈와 앱 껍데기(Expo)가 주고받는 메시지 규약이다. 깔려 있는 옛 앱과 새 웹이 늘 섞인다는 전제로 만들었다.
 `bridge/`는 순수 TypeScript다. React도, Node 전용 모듈도 쓰지 않는다. 브라우저 것은 전부 인자로 받는다.
+`Window`의 모양을 아는 파일은 `attach.ts` 하나뿐이다.
 
 ## 규칙 여섯
 
@@ -30,19 +31,21 @@
 
 ## 길 — 메시지가 오가는 곳
 
-웹에서 앱으로는 `window.ReactNativeWebView.postMessage(문자열)`이다. 이 함수는 앱 쪽이 `onMessage`를 설정했을 때만 생기고, 문자열 하나만 받는다.
+웹에서 앱으로는 `window.ReactNativeWebView.postMessage(문자열)`이다. `react-native-webview` 안내서(Guide.md)에 따르면 앱 쪽이 `onMessage`를 설정하지 않으면 이 함수는 웹 페이지에 주입되지 않는다. 또 인자는 하나뿐이고 문자열이어야 한다.
 그래서 메시지는 `JSON.stringify` 한 문자열로 보낸다.
 
-앱에서 웹으로는 `webViewRef.injectJavaScript(...)`로 `window.__YK_BRIDGE__.receive(메시지)`를 부른다.
+앱에서 웹으로는 안내서가 말하는 「React Native -> Web: `injectJavaScript` 메서드」로, `webViewRef.injectJavaScript(...)`가 `window.__YK_BRIDGE__.receive(메시지)`를 부른다.
 `attachToWindow`가 이 자리를 걸어 준다.
 
-자기 소개를 미리 넣는 길(빠른 길)은 `injectedJavaScriptObject`다. 앱이 이 값을 넣으면 웹은 `window.ReactNativeWebView.injectedObjectJson()`으로 읽는다. 이 값은 JSON 문자열이다.
-`injectedJavaScriptBeforeContentLoaded` 대신 이 길을 쓰는 이유는, 안드로이드에서 그 옵션이 페이지 이동 사이에 유지되지 않을 수 있다고 `react-native-webview` 문서가 안내하기 때문이다.
-출처는 github.com/react-native-webview/react-native-webview 의 `docs/Reference.md`와 `docs/Guide.md`다.
+자기 소개를 미리 넣는 길(빠른 길)은 `injectedJavaScriptObject`다. 앱이 이 값을 넣으면 웹은 `window.ReactNativeWebView.injectedObjectJson()`으로 읽는다.
+안내서에 따르면 이 함수는 `injectedJavaScriptObject`로 넘긴 객체를 JSON 문자열로 돌려주고, 속성을 읽으려면 `JSON.parse`를 거쳐야 하며, 값이 `undefined`일 수도 있다.
+`injectedJavaScriptBeforeContentLoaded`는 Reference.md에서 「On Android, this may work, but it is not 100% reliable」라고 하고 「Consider `injectedJavaScriptObject` instead.」라고 권한다. 안내서도 안드로이드의 경쟁 상태 때문에 「this more reliable prop was added」라고 적는다. 그래서 이 길을 쓴다.
+출처는 github.com/react-native-webview/react-native-webview 의 `master` 브랜치 `docs/Reference.md`와 `docs/Guide.md`다. 2026-11-22에 확인했다.
 
 핵심(`createWebBridge`)은 이 길을 모른다. 핵심은 `env.post`(보내는 함수)와 `env.injected`(미리 받은 자기 소개)만 받는다.
-창에 붙이는 일은 `attachToWindow(win)`이 한다. 이 함수는 `injectedObjectJson()`의 글자를 `JSON.parse`해서 `env.injected`로 넘긴다.
-함수가 던지거나 JSON이 아니면 `injected`를 비워서, 웹이 `hello`로 묻게 한다.
+창에 붙이는 일은 `attachToWindow(win)`이 한다. 이 함수는 `injectedObjectJson()`의 글자를 `JSON.parse`해서, 결과가 평범한 객체일 때만 `env.injected`로 넘긴다.
+함수가 없거나, 던지거나, 빈 글자거나, JSON이 아니거나, 객체가 아니면(`null`, 숫자, 배열 등) `injected`를 비워서 웹이 `hello`로 묻게 한다.
+객체인데 `parseHostInfo`를 통과하지 못하면(예: 규약 2) 앱 없음으로 끝내고 `hello`는 보내지 않는다.
 
 ## 기능표
 

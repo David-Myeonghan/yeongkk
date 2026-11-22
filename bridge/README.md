@@ -24,6 +24,8 @@
 이벤트 { v, kind: "event", name, payload? }
 ```
 
+앱이 모르는 규약 버전(`v`)의 요청은 답 없이 버려진다. 웹은 시간이 지나 `TIMEOUT`을 받고 대체 길로 넘어간다.
+
 오류 코드는 `UNSUPPORTED`, `TIMEOUT`, `FAILED`, `BAD_REQUEST`, `NO_HOST` 다.
 
 자기 소개(`HostInfo`)는 `{ protocol, appVersion, platform, capabilities }` 모양이다. `capabilities`는 기능 이름과 정수 버전의 표다.
@@ -52,7 +54,7 @@
 | 기능 | 버전 | payload → 결과 |
 | --- | --- | --- |
 | `share` | 1 | `{ title?, text?, url? }` → `{ completed: boolean }` |
-| `haptics` | 1 | `{ kind }` |
+| `haptics` | 1 | `{ kind: "success" \| "error" }` |
 | `notify` | 1 | `{ action: "status" \| "request" \| "schedule-weekly" \| "cancel" }` → `{ granted: boolean }` |
 | `ads` | 1 | `{ visible: boolean }` |
 | `offline` | - | 자리만, 아직 정의 안 함 |

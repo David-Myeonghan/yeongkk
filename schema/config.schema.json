@@ -42,6 +42,6 @@
       }
     },
     "minShell": { "type": "string" },
-    "api": { "type": "string", "pattern": "^(/|https://)" }
+    "api": { "type": "string", "pattern": "^(/(?!/)|https://)" }
   }
 }

@@ -6,11 +6,11 @@ import { checkConfig, loadConfigs } from "./config";
 import { buildLocale } from "./build";
 import type { Word } from "./types";
 
-export function writeBuild(root: string, outDir: string): string[] {
+export function writeBuild(root: string, outDir: string, opts: { withConfigs?: boolean } = {}): string[] {
   const ws = loadWords(root);
   const bad = ws.flatMap(checkFormat);
   if (bad.length) throw new Error(`형식 틀린 파일 ${bad.length}건: ${bad.map(b => `${b.file} ${b.message}`).join("; ")}`);
-  const cs = loadConfigs(root);
+  const cs = opts.withConfigs === false ? [] : loadConfigs(root);
   const badConfig = cs.flatMap(checkConfig);
   if (badConfig.length) throw new Error(`설정 파일 ${badConfig.length}건 틀림: ${badConfig.map(b => `${b.file} ${b.message}`).join("; ")}`);
   const words = ws.map(w => w.data as Word);

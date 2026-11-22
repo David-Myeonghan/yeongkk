@@ -4,7 +4,7 @@ export interface Word {
   addedBy: "auto" | "human" | "report"; addedAt: string; status: "active" | "retired";
 }
 export interface LoadedWord { path: string; folderLocale: string; fileName: string; data: unknown }
-export interface LoadedConfig { path: string; fileName: string; data: unknown }
+export interface LoadedConfig { path: string; fileName: string; data: unknown; parseError?: string }
 export interface Problem { file: string; rule: string; message: string }
 export interface CheckContext {
   words: LoadedWord[];

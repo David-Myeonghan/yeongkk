@@ -2,6 +2,8 @@ import { test, expect } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { loadWords } from "./load";
+import { sampleWord, loaded } from "./testkit";
 import { checkConfig, loadConfigs, type LoadedConfig } from "./config";
 import { runAll } from "./validate";
 import { writeBuild } from "./write-build";
@@ -33,19 +35,31 @@ test("실제 config/remote/ko-KR.json 이 통과한다", () => {
 test("스키마에 안 맞으면 형식 문제", () => {
   const ps = checkConfig(cfg({ ...good(), version: 0 }));
   expect(ps.length).toBeGreaterThan(0);
-  expect(ps[0].rule).toBe("형식");
+  expect(ps.every(p => p.file === "config/remote/ko-KR.json" && p.rule === "형식")).toBe(true);
+  expect(ps[0].message).toContain("/version");
 });
 test("모르는 키는 거절", () => { expect(checkConfig(cfg({ ...good(), feature: {} })).length).toBeGreaterThan(0); });
 test("features 칸이 빠지면 거절", () => {
   expect(checkConfig(cfg({ ...good(), features: { report: true, ask: false } })).length).toBeGreaterThan(0);
 });
 test("api 는 / 로 시작하거나 https:// 만", () => {
-  expect(checkConfig(cfg(good({ api: "https://api.example.com" })))).toEqual([]);
-  expect(checkConfig(cfg(good({ api: "http://x" }))).length).toBeGreaterThan(0);
-  expect(checkConfig(cfg(good({ api: "api" }))).length).toBeGreaterThan(0);
+  for (const ok of ["/api", "https://example.com/api"]) expect(checkConfig(cfg(good({ api: ok }))), ok).toEqual([]);
+  for (const bad of ["//x", "//evil.com", "http://example.com", "", "api"]) expect(checkConfig(cfg(good({ api: bad }))).length, bad).toBeGreaterThan(0);
 });
 test("JSON 아니면 형식 문제", () => {
-  expect(messages({ __parseError: "boom" })).toContain("JSON 아님");
+  const ps = checkConfig({ ...cfg(undefined), parseError: "boom" });
+  expect(ps.map(p => p.message).join()).toContain("JSON 아님");
+});
+test("데이터에 __parseError 키가 있어도 JSON 문제로 오인하지 않는다", () => {
+  const m = messages({ ...good(), __parseError: "x" });
+  expect(m).not.toContain("JSON 아님");
+  expect(m).toContain("__parseError");
+});
+test("loadConfigs 는 깨진 JSON 을 parseError 로 싣는다", () => {
+  const root = repo({ "config/remote/ko-KR.json": "{ nope" });
+  const [c] = loadConfigs(root);
+  expect(c.parseError).toBeDefined();
+  expect(checkConfig(c)[0].message).toContain("JSON 아님");
 });
 test("가중치 합이 0 이면 실패(꺼진 실험도)", () => {
   const e = { id: "x", enabled: false, variants: [{ name: "a", weight: 0 }, { name: "b", weight: 0 }] };
@@ -87,4 +101,27 @@ test("config/remote 가 없어도 묶기는 성공", () => {
 test("스키마에 안 맞는 설정이면 묶기가 던진다", () => {
   const root = repo({ "config/remote/ko-KR.json": JSON.stringify({ ...good(), version: 0 }) });
   expect(() => writeBuild(root, join(root, "dist"))).toThrow();
+});
+
+test("설정만 틀려도 단어 묶기 실패는 보이고, 설정 오류는 한 번만", () => {
+  const root = repo({
+    "config/remote/ko-KR.json": JSON.stringify({ ...good(), version: 0 }),
+    "words/ko-KR/gatsaeng.json": JSON.stringify(sampleWord()),
+  });
+  const ctx = (words: ReturnType<typeof loadWords>) =>
+    runAll({ words, configs: loadConfigs(root), banned: {}, changedFiles: [], deletedFiles: [], isBot: false, root });
+  const ps = ctx(loadWords(root));
+  expect(ps.filter(p => p.file === "config/remote/ko-KR.json")).toHaveLength(1);
+  expect(ps.some(p => p.rule === "묶기")).toBe(false);
+});
+test("설정이 틀리고 단어 묶기도 실패하면 둘 다 보인다", () => {
+  const root = repo({
+    "config/remote/ko-KR.json": JSON.stringify({ ...good(), version: 0 }),
+    "words/ko-KR/gatsaeng.json": "{ broken",
+  });
+  const words = [loaded(sampleWord())];
+  const ps = runAll({ words, configs: loadConfigs(root), banned: {}, changedFiles: [], deletedFiles: [], isBot: false, root });
+  expect(ps.some(p => p.rule === "묶기")).toBe(true);
+  expect(ps.filter(p => p.file === "config/remote/ko-KR.json")).toHaveLength(1);
+  expect(ps.find(p => p.rule === "묶기")?.message).not.toContain("설정 파일");
 });

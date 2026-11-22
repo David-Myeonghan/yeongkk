@@ -18,9 +18,9 @@ export function runAll(ctx: CheckContext): Problem[] {
   out.push(...checkDuplicates(valid, ctx.changedFiles), ...checkSources(valid), ...checkBanned(valid, ctx.banned),
            ...checkQuiz(valid), ...checkPII(valid), ...checkScope(ctx.changedFiles, ctx.deletedFiles, ctx.isBot));
   if (ctx.root !== undefined) {
-    if (valid.length === ctx.words.length && configProblems.length === 0) {
+    if (valid.length === ctx.words.length) {
       const tmp = mkdtempSync(join(tmpdir(), "yeongkk-build-"));
-      try { writeBuild(ctx.root, tmp); }
+      try { writeBuild(ctx.root, tmp, { withConfigs: false }); }
       catch (e) { out.push({ file: "words", rule: "묶기", message: String(e) }); }
       finally { rmSync(tmp, { recursive: true, force: true }); }
     }

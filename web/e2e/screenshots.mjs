@@ -1,15 +1,12 @@
-/* global console, process, fetch, setTimeout, URL, localStorage, document */
+/* global console, process, setTimeout, URL, localStorage, document */
 // 이미 빌드된 web/dist 를 vite preview 로 띄우고 화면별 PNG 를 web/e2e/__screens__/ 에 남긴다.
 // 사용: npm run build -w web && node web/e2e/screenshots.mjs
-import { spawn } from "node:child_process";
-import { mkdir, readFile } from "node:fs/promises";
-import { createServer } from "node:net";
+import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
+import { startPreview, stubNetwork, words } from "./support.mjs";
 
-const webDir = fileURLToPath(new URL("..", import.meta.url));
 const outDir = fileURLToPath(new URL("./__screens__/", import.meta.url));
-const fixture = (name) => readFile(fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)), "utf8");
 const KEY = "yk.progress.v1";
 const NOW = new Date("2026-11-23T10:00:00+09:00");
 const PHONE = { width: 390, height: 844 };
@@ -17,36 +14,8 @@ const SMALL = { width: 320, height: 568 };
 const SETTLE_MS = 700;
 
 const apiCalls = [];
-// Chromium 은 sendBeacon 을 page.route 로 못 가로챈다. 밖으로 나가지 않게 막는다.
-const NO_NETWORK_BEACON = `navigator.sendBeacon = () => true;`;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
-      const { port } = server.address();
-      server.close(() => resolve(port));
-    });
-  });
-}
-
-async function waitForServer(url) {
-  for (let i = 0; i < 100; i++) {
-    try {
-      if ((await fetch(url)).ok) return;
-    } catch {
-      // 아직 안 떴다
-    }
-    await sleep(100);
-  }
-  throw new Error(`preview 가 뜨지 않았어요: ${url}`);
-}
-
-const words = JSON.parse(await fixture("words.ko-KR.json")).words;
-const wordsBody = await fixture("words.ko-KR.json");
-const configBody = await fixture("config.ko-KR.json");
 const NEW_FIRST = ["god-saeng", ...words.map((w) => w.id).filter((id) => id !== "god-saeng").slice(0, 9)];
 
 function progress(roundId, wordIds, answered) {
@@ -69,17 +38,9 @@ async function openPage(browser, base, { colorScheme, viewport, failWords = fals
     deviceScaleFactor: 2,
   });
   const page = await context.newPage();
-  await page.addInitScript(NO_NETWORK_BEACON);
   if (initScript) await page.addInitScript(initScript);
   await page.clock.setFixedTime(NOW);
-  await page.route("**/words.ko-KR.json", (route) =>
-    failWords ? route.abort() : route.fulfill({ contentType: "application/json", body: wordsBody }),
-  );
-  await context.route("**/api/**", (route) => {
-    apiCalls.push(`${route.request().method()} ${new URL(route.request().url()).pathname}`);
-    return route.fulfill({ status: 204 });
-  });
-  await page.route("**/config.ko-KR.json", (route) => route.fulfill({ contentType: "application/json", body: configBody }));
+  await stubNetwork(context, { failWords, apiCalls });
   await page.goto(base);
   return { context, page };
 }
@@ -206,16 +167,11 @@ async function shootSmall(browser, base) {
 }
 
 await mkdir(outDir, { recursive: true });
-const port = await freePort();
-const base = `http://127.0.0.1:${port}/`;
-const preview = spawn("npx", ["vite", "preview", "--host", "127.0.0.1", "--port", String(port), "--strictPort"], {
-  cwd: webDir,
-  stdio: ["ignore", "ignore", "inherit"],
-});
+const preview = await startPreview();
+const base = preview.base;
 
 let browser;
 try {
-  await waitForServer(base);
   browser = await chromium.launch();
   await shootPhone(browser, base, "light");
   await shootPhone(browser, base, "dark");
@@ -227,5 +183,5 @@ try {
   process.exitCode = 1;
 } finally {
   await browser?.close();
-  preview.kill("SIGTERM");
+  preview.stop();
 }

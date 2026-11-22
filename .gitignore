@@ -9,3 +9,5 @@ check-report.md
 .dev.vars*
 .wrangler/
 web/e2e/__screens__/
+web/test-results/
+web/playwright-report/

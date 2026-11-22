@@ -24,6 +24,24 @@ jobs:
       - run: npm test -w web
       - run: npm run typecheck -w web
       - run: npm run build -w web
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test -c web
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            web/playwright-report/
+            web/test-results/
+          retention-days: 3
   # collect job 은 2부 Task 17 (collect/ 생성) 뒤에 주석을 풀어 켠다.
   # collect:
   #   runs-on: ubuntu-latest

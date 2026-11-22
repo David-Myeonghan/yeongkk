@@ -2,12 +2,13 @@ import { AppScreen } from "@stackflow/plugin-basic-ui";
 import { useFlow, type ActivityComponentType } from "@stackflow/react";
 import { share, type ShareData } from "@yk/bridge/share";
 import { RESULT_COPY, resultTier, score } from "@yk/quiz-core/score";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { match } from "ts-pattern";
 import { visuallyHidden } from "../app/a11y.css";
 import { useAppData } from "../app/AppData";
 import { quizAppBar, useHeadingFocus, useQuizRoute, type QuizView } from "../app/screen";
 import { getBridge } from "../platform/bridge";
+import { shareEnvFrom } from "../platform/shareEnv";
 import { shareDataFor } from "../platform/shareData";
 import { newRoundId } from "../state/ids";
 import { clearProgress, saveProgress } from "../state/progress";
@@ -19,22 +20,26 @@ import { vars } from "../styles/theme.css";
 
 const COPIED = "복사했어요";
 const MANUAL_HINT = "주소를 길게 눌러 복사해 주세요";
+const MANUAL_TEXT_HINT = "글을 길게 눌러 복사해 주세요";
 
-type ShareNote = { kind: "copied" } | { kind: "manual"; url: string } | null;
+type ShareNote = { kind: "copied" } | { kind: "manual"; hint: string; copyable: string } | null;
+
+function manualNote(data: ShareData): ShareNote {
+  return data.url
+    ? { kind: "manual", hint: MANUAL_HINT, copyable: data.url }
+    : { kind: "manual", hint: MANUAL_TEXT_HINT, copyable: data.text ?? "" };
+}
 
 async function shareResult(data: ShareData): Promise<ShareNote> {
   try {
-    const result = await share(getBridge(), data, {
-      webShare: navigator.share?.bind(navigator),
-      clipboardWrite: navigator.clipboard?.writeText.bind(navigator.clipboard),
-    });
+    const result = await share(getBridge(), data, shareEnvFrom(navigator));
     return match(result.via)
       .with("clipboard", () => ({ kind: "copied" }) as const)
-      .with("none", () => ({ kind: "manual", url: data.url ?? "" }) as const)
+      .with("none", () => manualNote(data))
       .with("native", "web-share", () => null)
       .exhaustive();
   } catch {
-    return null;
+    return manualNote(data);
   }
 }
 
@@ -57,6 +62,16 @@ function ResultBody({ view, leave }: { view: QuizView; leave(fn: () => void): vo
   const [sharing, setSharing] = useState(false);
   const [note, setNote] = useState<ShareNote>(null);
 
+  const shareButtonRef = useRef<HTMLButtonElement>(null);
+  const refocus = useRef(false);
+
+  useEffect(() => {
+    if (!sharing && refocus.current) {
+      refocus.current = false;
+      shareButtonRef.current?.focus({ preventScroll: true });
+    }
+  }, [sharing]);
+
   const onShare = () => {
     if (sharing) return;
     setSharing(true);
@@ -64,6 +79,8 @@ function ResultBody({ view, leave }: { view: QuizView; leave(fn: () => void): vo
     void shareResult(shareDataFor(correct, total, window.location.origin)).then((next) => {
       setNote(next);
       if (next?.kind === "copied") app.announce(COPIED);
+      if (next?.kind === "manual") app.announce(next.hint);
+      refocus.current = true;
       setSharing(false);
     });
   };
@@ -91,12 +108,12 @@ function ResultBody({ view, leave }: { view: QuizView; leave(fn: () => void): vo
       {note?.kind === "copied" && <p className={q.shareNote}>{COPIED}</p>}
       {note?.kind === "manual" && (
         <div className={q.shareNote}>
-          <p className={q.shareHint}>{MANUAL_HINT}</p>
-          <p className={q.shareUrl}>{note.url}</p>
+          <p className={q.shareHint}>{note.hint}</p>
+          <p className={q.shareUrl}>{note.copyable}</p>
         </div>
       )}
       <div className={ui.footer}>
-        <button type="button" className={ui.button.primary} disabled={sharing} onClick={onShare}>
+        <button ref={shareButtonRef} type="button" className={ui.button.primary} disabled={sharing} onClick={onShare}>
           공유하기
         </button>
         <button type="button" className={ui.button.secondary} onClick={again}>

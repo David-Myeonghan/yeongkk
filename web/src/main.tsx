@@ -16,9 +16,14 @@ root.dataset.copyLocales = Object.keys(RESULT_COPY).join(",");
 
 void getBridge()
   .ready()
-  .then((info) => {
-    document.documentElement.dataset.host = hostKind(info);
-  });
+  .then(
+    (info) => {
+      document.documentElement.dataset.host = hostKind(info);
+    },
+    () => {
+      document.documentElement.dataset.host = hostKind(null);
+    },
+  );
 
 createRoot(root).render(
   <StrictMode>

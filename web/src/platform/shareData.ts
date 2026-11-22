@@ -5,6 +5,6 @@ export function shareDataFor(correct: number, total: number, origin: string): Sh
   return {
     title: "뭔말이야",
     text: `${correct}점 — ${RESULT_COPY["ko-KR"][resultTier(correct, total)]}`,
-    url: `${origin}/?r=${correct}`,
+    ...(origin === "" || origin === "null" ? {} : { url: `${origin}/?r=${correct}` }),
   };
 }

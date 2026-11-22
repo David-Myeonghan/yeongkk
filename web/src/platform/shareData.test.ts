@@ -14,4 +14,10 @@ describe("shareDataFor", () => {
     expect(shareDataFor(0, 10, "https://a.test").url).toBe("https://a.test/?r=0");
     expect(shareDataFor(10, 10, "https://a.test").text?.startsWith("10점 — ")).toBe(true);
   });
+
+  it.each(["null", ""])("origin 이 %j 이면 url 을 뺀다", (origin) => {
+    const data = shareDataFor(7, 10, origin);
+    expect(data.url).toBeUndefined();
+    expect(data.text).toContain("7점");
+  });
 });

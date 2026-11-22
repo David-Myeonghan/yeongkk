@@ -1,3 +1,4 @@
+import { postAsk } from "./ask";
 import { postEvents } from "./events";
 import { postReports } from "./reports";
 import { getStats } from "./stats";
@@ -10,6 +11,7 @@ export const routes: Routes = {
   "/api/events": { POST: postEvents },
   "/api/reports": { POST: postReports },
   "/api/stats": { GET: getStats },
+  "/api/ask": { POST: postAsk },
 };
 
 const ownValue = <T>(table: Record<string, T>, key: string): T | undefined =>

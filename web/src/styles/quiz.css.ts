@@ -168,3 +168,25 @@ export const tierLine = style({
   fontWeight: 800,
   lineHeight: vars.lineHeight.snug,
 });
+
+export const shareNote = style({
+  marginTop: vars.space.lg,
+  fontSize: vars.fontSize.md,
+  fontWeight: 600,
+  color: vars.color.text,
+});
+
+export const shareHint = style({ margin: 0, color: vars.color.muted, fontWeight: 600 });
+
+export const shareUrl = style({
+  margin: 0,
+  marginTop: vars.space.sm,
+  padding: vars.space.md,
+  borderRadius: vars.radius.md,
+  background: vars.color.sunken,
+  fontWeight: 500,
+  userSelect: "all",
+  WebkitUserSelect: "all",
+  overflowWrap: "anywhere",
+  wordBreak: "break-all",
+});

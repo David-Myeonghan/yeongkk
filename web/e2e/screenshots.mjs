@@ -55,7 +55,7 @@ function progress(roundId, wordIds, answered) {
   };
 }
 
-async function openPage(browser, base, { colorScheme, viewport, failWords = false }) {
+async function openPage(browser, base, { colorScheme, viewport, failWords = false, initScript }) {
   const context = await browser.newContext({
     viewport,
     colorScheme,
@@ -66,6 +66,7 @@ async function openPage(browser, base, { colorScheme, viewport, failWords = fals
     deviceScaleFactor: 2,
   });
   const page = await context.newPage();
+  if (initScript) await page.addInitScript(initScript);
   await page.clock.setFixedTime(NOW);
   await page.route("**/words.ko-KR.json", (route) =>
     failWords ? route.abort() : route.fulfill({ contentType: "application/json", body: wordsBody }),
@@ -151,6 +152,35 @@ async function shootPhone(browser, base, colorScheme) {
   }
 }
 
+const NO_SHARE_COPY_OK = `
+  Object.defineProperty(navigator, "share", { value: undefined, configurable: true });
+  Object.defineProperty(navigator, "clipboard", { value: { writeText: () => Promise.resolve() }, configurable: true });
+`;
+const NO_SHARE_NO_COPY = `
+  Object.defineProperty(navigator, "share", { value: undefined, configurable: true });
+  Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true });
+`;
+
+async function shootShare(browser, base) {
+  for (const [name, initScript] of [
+    ["result-share-copied-light", NO_SHARE_COPY_OK],
+    ["result-share-manual-light", NO_SHARE_NO_COPY],
+  ]) {
+    const { context, page } = await openPage(browser, base, { colorScheme: "light", viewport: PHONE, initScript });
+    await page.getByRole("button", { name: "시작" }).waitFor();
+    await withProgress(page, base, progress("result", NEW_FIRST, 9));
+    await resume(page);
+    await page.locator('[role="group"] button').first().click();
+    await sleep(SETTLE_MS + 400);
+    await page.getByRole("button", { name: "결과 보기" }).click();
+    await sleep(SETTLE_MS);
+    await page.getByRole("button", { name: "공유하기" }).click();
+    await sleep(300);
+    await shot(page, name);
+    await context.close();
+  }
+}
+
 async function shootSmall(browser, base) {
   const { context, page } = await openPage(browser, base, { colorScheme: "light", viewport: SMALL });
   await page.getByRole("button", { name: "시작" }).waitFor();
@@ -176,6 +206,7 @@ try {
   await shootPhone(browser, base, "light");
   await shootPhone(browser, base, "dark");
   await shootSmall(browser, base);
+  await shootShare(browser, base);
 } catch (error) {
   console.error(error);
   process.exitCode = 1;

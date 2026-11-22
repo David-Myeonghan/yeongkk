@@ -62,7 +62,7 @@ const buttonBase = style({
   selectors: {
     "&:focus-visible": { outline: `3px solid ${vars.color.accent}`, outlineOffset: "3px" },
     "&:active:not(:disabled)": { transform: "scale(0.98)" },
-    "&:disabled": { cursor: "default" },
+    "&:disabled": { cursor: "default", opacity: 0.6 },
   },
 });
 

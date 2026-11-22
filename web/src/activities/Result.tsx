@@ -1,9 +1,14 @@
 import { AppScreen } from "@stackflow/plugin-basic-ui";
 import { useFlow, type ActivityComponentType } from "@stackflow/react";
+import { share, type ShareData } from "@yk/bridge/share";
 import { RESULT_COPY, resultTier, score } from "@yk/quiz-core/score";
+import { useState } from "react";
+import { match } from "ts-pattern";
 import { visuallyHidden } from "../app/a11y.css";
 import { useAppData } from "../app/AppData";
 import { quizAppBar, useHeadingFocus, useQuizRoute, type QuizView } from "../app/screen";
+import { getBridge } from "../platform/bridge";
+import { shareDataFor } from "../platform/shareData";
 import { newRoundId } from "../state/ids";
 import { clearProgress, saveProgress } from "../state/progress";
 import { startRound } from "../state/session";
@@ -11,6 +16,27 @@ import { localDate } from "../state/today";
 import * as q from "../styles/quiz.css";
 import * as ui from "../styles/screen.css";
 import { vars } from "../styles/theme.css";
+
+const COPIED = "복사했어요";
+const MANUAL_HINT = "주소를 길게 눌러 복사해 주세요";
+
+type ShareNote = { kind: "copied" } | { kind: "manual"; url: string } | null;
+
+async function shareResult(data: ShareData): Promise<ShareNote> {
+  try {
+    const result = await share(getBridge(), data, {
+      webShare: navigator.share?.bind(navigator),
+      clipboardWrite: navigator.clipboard?.writeText.bind(navigator.clipboard),
+    });
+    return match(result.via)
+      .with("clipboard", () => ({ kind: "copied" }) as const)
+      .with("none", () => ({ kind: "manual", url: data.url ?? "" }) as const)
+      .with("native", "web-share", () => null)
+      .exhaustive();
+  } catch {
+    return null;
+  }
+}
 
 export const Result: ActivityComponentType<"Result"> = () => {
   const { view, leave } = useQuizRoute("Result", undefined);
@@ -27,6 +53,20 @@ function ResultBody({ view, leave }: { view: QuizView; leave(fn: () => void): vo
   const headingRef = useHeadingFocus<HTMLHeadingElement>();
   const { correct, total } = score(view.progress.answers);
   const copy = RESULT_COPY["ko-KR"][resultTier(correct, total)];
+
+  const [sharing, setSharing] = useState(false);
+  const [note, setNote] = useState<ShareNote>(null);
+
+  const onShare = () => {
+    if (sharing) return;
+    setSharing(true);
+    setNote(null);
+    void shareResult(shareDataFor(correct, total, window.location.origin)).then((next) => {
+      setNote(next);
+      if (next?.kind === "copied") app.announce(COPIED);
+      setSharing(false);
+    });
+  };
 
   const again = () =>
     leave(() => {
@@ -48,8 +88,18 @@ function ResultBody({ view, leave }: { view: QuizView; leave(fn: () => void): vo
         </span>
         <span className={`${ui.bubble.reply} ${q.tierLine}`}>{copy}</span>
       </h1>
+      {note?.kind === "copied" && <p className={q.shareNote}>{COPIED}</p>}
+      {note?.kind === "manual" && (
+        <div className={q.shareNote}>
+          <p className={q.shareHint}>{MANUAL_HINT}</p>
+          <p className={q.shareUrl}>{note.url}</p>
+        </div>
+      )}
       <div className={ui.footer}>
-        <button type="button" className={ui.button.primary} onClick={again}>
+        <button type="button" className={ui.button.primary} disabled={sharing} onClick={onShare}>
+          공유하기
+        </button>
+        <button type="button" className={ui.button.secondary} onClick={again}>
           다시 하기
         </button>
         <button type="button" className={ui.button.secondary} onClick={() => leave(() => pop())}>

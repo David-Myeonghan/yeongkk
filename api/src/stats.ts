@@ -13,9 +13,9 @@ const isAuthorized = async (request: Request, env: Env): Promise<boolean> => {
   const token = env.STATS_TOKEN;
   if (typeof token !== "string" || token === "") return false;
   const header = request.headers.get("Authorization") ?? "";
-  const prefix = "Bearer ";
-  if (!header.startsWith(prefix)) return false;
-  const [given, expected] = await Promise.all([digest(header.slice(prefix.length)), digest(token)]);
+  const match = /^bearer ([^\s]+)$/i.exec(header);
+  if (match === null) return false;
+  const [given, expected] = await Promise.all([digest(match[1] ?? ""), digest(token)]);
   let diff = 0;
   for (let i = 0; i < expected.length; i += 1) diff |= (given[i] ?? 1) ^ (expected[i] ?? 0);
   return diff === 0;

@@ -1,4 +1,4 @@
-import { countReportsSince, insertReport } from "./db";
+import { insertReportWithinLimit } from "./db";
 import { json, noContent, type Handler } from "./http";
 import { dayOf } from "./time";
 import { readWordRequest } from "./validate";
@@ -11,7 +11,6 @@ export const postReports: Handler = async (request, env, now) => {
   const { anonId, locale, word } = read.value;
   const at = now();
   const day = dayOf(at);
-  if ((await countReportsSince(env, anonId, day)) >= DAILY_LIMIT) return json("RATE_LIMITED", 429);
-  await insertReport(env, { receivedAt: new Date(at).toISOString(), day, locale, word, anonId });
-  return noContent();
+  const row = { receivedAt: new Date(at).toISOString(), day, locale, word, anonId };
+  return (await insertReportWithinLimit(env, row, DAILY_LIMIT)) ? noContent() : json("RATE_LIMITED", 429);
 };

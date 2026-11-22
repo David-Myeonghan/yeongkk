@@ -27,17 +27,15 @@ export type ReportRow = {
   anonId: string;
 };
 
-export const insertReport = async (env: Env, r: ReportRow): Promise<void> => {
-  await env.DB.prepare("INSERT INTO reports (received_at, day, locale, word, anon_id) VALUES (?, ?, ?, ?, ?)")
-    .bind(r.receivedAt, r.day, r.locale, r.word, r.anonId)
+export const insertReportWithinLimit = async (env: Env, r: ReportRow, limit: number): Promise<boolean> => {
+  const result = await env.DB.prepare(
+    `INSERT INTO reports (received_at, day, locale, word, anon_id)
+     SELECT ?1, ?2, ?3, ?4, ?5
+     WHERE (SELECT COUNT(*) FROM reports WHERE anon_id = ?5 AND day = ?2) < ?6`,
+  )
+    .bind(r.receivedAt, r.day, r.locale, r.word, r.anonId, limit)
     .run();
-};
-
-export const countReportsSince = async (env: Env, anonId: string, day: string): Promise<number> => {
-  const row = await env.DB.prepare("SELECT COUNT(*) AS n FROM reports WHERE anon_id = ? AND day >= ?")
-    .bind(anonId, day)
-    .first<{ n: number }>();
-  return row?.n ?? 0;
+  return result.meta.changes > 0;
 };
 
 export type DayStats = {

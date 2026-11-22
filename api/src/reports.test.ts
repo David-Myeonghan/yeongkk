@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createHandler, routes } from "./index";
 
 const ctx = { waitUntil() {}, passThroughOnException() {} } as unknown as ExecutionContext;
@@ -21,6 +21,8 @@ const report = (word: string, anonId = anon) => ({ anonId, locale: "ko-KR", word
 
 type Row = { id: number; received_at: string; day: string; locale: string; word: string; anon_id: string };
 const rows = async () => (await env.DB.prepare("SELECT * FROM reports ORDER BY id").all<Row>()).results;
+
+afterEach(() => vi.restoreAllMocks());
 
 beforeEach(async () => {
   await env.DB.prepare("DELETE FROM reports").run();
@@ -79,6 +81,41 @@ describe("POST /api/reports", () => {
     expect(res.status).toBe(429);
     expect(await res.json()).toEqual({ code: "RATE_LIMITED" });
     expect(await rows()).toHaveLength(20);
+  });
+
+  it("동시에 25건을 보내도 정확히 20건만 저장한다", async () => {
+    const results = await Promise.all(Array.from({ length: 25 }, (_, i) => post(report(`동시${i}`))));
+    expect(results.filter((r) => r.status === 204)).toHaveLength(20);
+    expect(results.filter((r) => r.status === 429)).toHaveLength(5);
+    expect(await rows()).toHaveLength(20);
+  });
+
+  it("전각 @ 는 400, 정규화한 글을 저장한다", async () => {
+    expect((await post(report("＠david"))).status).toBe(400);
+    expect((await post(report("ａｂｃ"))).status).toBe(204);
+    expect((await rows())[0]?.word).toBe("abc");
+  });
+
+  it("D1 이 실패하면 204 가 아니라 JSON 500", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const failing = {
+      prepare: () => ({ bind: () => ({ run: () => Promise.reject(new Error("d1 down")), first: () => Promise.reject(new Error("d1 down")) }) }),
+      batch: () => Promise.reject(new Error("d1 down")),
+    };
+    const broken = { ...env, DB: failing } as unknown as Env;
+    const send = (path: string, body: unknown) =>
+      createHandler(routes, () => NOW).fetch(
+        new Request(`https://yeongkk.test${path}`, { method: "POST", body: JSON.stringify(body) }),
+        broken,
+        ctx,
+      );
+    const events = await send("/api/events", { anonId: anon, locale: "ko-KR", host: "app", events: [{ name: "app_open", at: 1 }] });
+    const reports = await send("/api/reports", report("갑분싸"));
+    for (const res of [events, reports]) {
+      expect(res.status).toBe(500);
+      expect(await res.json()).toEqual({ code: "INTERNAL_ERROR" });
+    }
+    expect(log).toHaveBeenCalledTimes(2);
   });
 
   it("한도는 anonId 별 · 날(UTC+9) 별로 센다", async () => {

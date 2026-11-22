@@ -29,10 +29,16 @@ beforeEach(async () => {
 
 describe("GET /api/stats 인증", () => {
   it("토큰이 없거나 틀리면 401 UNAUTHORIZED", async () => {
-    for (const auth of [null, "Bearer wrong", "Bearer", "Bearer ", "test-token", "Basic test-token", "bearer test-token"]) {
+    for (const auth of [null, "Bearer wrong", "Bearer", "Bearer ", "test-token", "Basic test-token", "Bearer  test-token", "Bearer test-token x"]) {
       const res = await get(`?from=${D1}&to=${D3}`, auth);
       expect(res.status, String(auth)).toBe(401);
       expect(await res.json()).toEqual({ code: "UNAUTHORIZED" });
+    }
+  });
+
+  it("인증 방식 이름은 대소문자를 가리지 않는다", async () => {
+    for (const auth of ["bearer test-token", "BEARER test-token", "Bearer test-token"]) {
+      expect((await get(`?from=${D1}&to=${D3}`, auth)).status, auth).toBe(200);
     }
   });
 

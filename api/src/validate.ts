@@ -67,17 +67,27 @@ export const parseHost = (value: unknown): "app" | "browser" | null =>
 export const parseAppVersion = (value: unknown): string | null =>
   typeof value === "string" && APP_VERSION.test(value) ? value : null;
 
-const DOMAIN_LIKE = /\.\p{L}{2,}$/u;
+const DOMAIN_LIKE = /\.(?:[A-Za-z]{2,}|xn--[a-z0-9-]+)(?=$|[/?#:.,!)\s])/i;
 
 const looksLikePii = (word: string): boolean => {
   if (word.includes("@") || word.includes("://") || word.toLowerCase().includes("www.")) return true;
-  if (word.split(/\s+/).some((token) => DOMAIN_LIKE.test(token))) return true;
+  if (DOMAIN_LIKE.test(word)) return true;
   return (word.match(/\d/g) ?? []).length >= 7;
 };
 
+const COMPAT_JAMO = /[\u3130-\u318F]/u;
+
+const normalizeWord = (value: string): string =>
+  [...value]
+    .map((char) => (COMPAT_JAMO.test(char) ? char : char.normalize("NFKC")))
+    .join("")
+    .normalize("NFC")
+    .replace(/\p{Cf}/gu, "")
+    .trim();
+
 export const parseWord = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
-  const word = value.trim();
+  const word = normalizeWord(value);
   const length = [...word].length;
   if (length < 1 || length > 20) return null;
   return looksLikePii(word) ? null : word;

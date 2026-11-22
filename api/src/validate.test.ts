@@ -28,6 +28,30 @@ describe("parseWord", () => {
     expect(parseWord("ㅇㅈ.")).toBe("ㅇㅈ.");
     expect(parseWord("a.b")).toBe("a.b");
   });
+
+  it("한글 · 숫자 · 한 글자가 점 뒤에 와도 허용", () => {
+    for (const v of ["어쩔.티비", "ㅇㅈ.ㅇㅇ", "ㅋ.ㅋ", "v2.0", "a.b"]) expect(parseWord(v), v).toBe(v);
+  });
+
+  it("점 뒤 ASCII 2자 이상 · xn-- 라벨이 끝 또는 구분 기호 앞이면 주소 모양", () => {
+    for (const v of [
+      "kakao.com/o/x", "bit.ly/x", "naver.com.", "see naver.com now", "naver.com?q=1", "naver.com#a",
+      "naver.com:8080", "naver.com,", "naver.com!", "(naver.com)", "a.xn--p1ai", "NAVER.COM",
+    ]) {
+      expect(parseWord(v), v).toBeNull();
+    }
+  });
+
+  it("비슷하게 생긴 문자도 걸러낸다 (전각 · 숫자 · 보이지 않는 문자)", () => {
+    for (const v of ["＠david", "０１０１２３４５６７８", "naver.c\u200Bom", "ｎａｖｅｒ．ｃｏｍ"]) {
+      expect(parseWord(v), v).toBeNull();
+    }
+  });
+
+  it("정규화한 값을 돌려주고 평범한 한글은 그대로", () => {
+    expect(parseWord("갑분싸")).toBe("갑분싸");
+    expect(parseWord("ａｂ\u200Bc")).toBe("abc");
+  });
 });
 
 describe("식별 값", () => {

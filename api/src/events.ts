@@ -22,7 +22,7 @@ const sanitizeProps = (raw: unknown): string | null => {
     if (count >= MAX_PROPS) break;
     if (!PROP_KEY.test(key)) continue;
     const ok =
-      (typeof value === "string" && value.length <= MAX_STRING && !value.includes("@")) ||
+      (typeof value === "string" && [...value].length <= MAX_STRING && !value.includes("@")) ||
       (typeof value === "number" && Number.isFinite(value)) ||
       typeof value === "boolean";
     if (!ok) continue;

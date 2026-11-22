@@ -96,6 +96,11 @@ describe("POST /api/events", () => {
     });
   });
 
+  it("props 문자열 길이는 코드 포인트로 센다 (200)", async () => {
+    await post({ ...base, events: [ev("app_open", { ok: "😀".repeat(150), no: "😀".repeat(201), edge: "😀".repeat(200) })] });
+    expect(JSON.parse((await rows())[0]?.props ?? "null")).toEqual({ ok: "😀".repeat(150), edge: "😀".repeat(200) });
+  });
+
   it("props 는 20개까지만 남기고, 다 걸러지면 null", async () => {
     const props = Object.fromEntries(Array.from({ length: 25 }, (_, i) => [`p${i}`, i]));
     await post({ ...base, events: [ev("app_open", props), ev("app_open", { a: "x@y" })] });

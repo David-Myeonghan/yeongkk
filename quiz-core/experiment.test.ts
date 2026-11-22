@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { assignVariant, type Experiment } from "./experiment";
-import { seededRng } from "./rng";
+import { fnv1a32, seededRng } from "./rng";
 
 const exp = (id: string, variants = [{ name: "a", weight: 1 }, { name: "b", weight: 1 }]): Experiment => ({
   id,
@@ -42,5 +42,21 @@ describe("assignVariant", () => {
     expect(assignVariant("u", { ...exp("x"), enabled: false })).toBeNull();
     expect(assignVariant("u", exp("x", []))).toBeNull();
     expect(assignVariant("u", exp("x", [{ name: "a", weight: 0 }]))).toBeNull();
+  });
+
+  it.each([
+    ["user-1", "funny", 2708227014, "b"],
+    ["영크크-기기", "funny", 2485476913, "b"],
+    ["device-abc123", "order", 1899015800, "a"],
+  ])("골든: %s + %s 은 해시 %i, 변형 %s (anonId:expId 순서 고정)", (anonId, expId, hash, variant) => {
+    expect(fnv1a32(anonId + ":" + expId)).toBe(hash);
+    expect(assignVariant(anonId, exp(expId))).toBe(variant);
+  });
+
+  it.each([
+    ["user-1", "funny", "b"],
+    ["영크크-기기", "order", "b"],
+  ])("골든 1:3: %s + %s 은 변형 %s", (anonId, expId, variant) => {
+    expect(assignVariant(anonId, exp(expId, [{ name: "a", weight: 1 }, { name: "b", weight: 3 }]))).toBe(variant);
   });
 });

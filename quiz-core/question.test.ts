@@ -77,11 +77,15 @@ describe("makeQuestion — 문제 만들기", () => {
   });
 
   it("funnyWrong 이 정답과 같으면 쓰지 않고 보기는 겹치지 않는다", () => {
-    const target = word(0, { funnyWrong: ["뜻0", "뜻1"] });
-    const q = makeQuestion(target, pool(10), { kind: "meaning", rng: seededRng("a"), funnyWrong: true });
-    expect(new Set(q.choices).size).toBe(q.choices.length);
-    expect(q.choices.filter((c) => c === "뜻0")).toHaveLength(1);
-    expect(q.choices).toContain("뜻1");
+    const dropped = makeQuestion(word(0, { funnyWrong: ["뜻0"] }), pool(10), { kind: "meaning", rng: seededRng("a"), funnyWrong: true });
+    expect(dropped.hasFunnyWrong).toBe(false);
+    expect(new Set(dropped.choices).size).toBe(dropped.choices.length);
+    expect(dropped.choices.filter((c) => c === "뜻0")).toHaveLength(1);
+
+    const used = makeQuestion(word(0, { funnyWrong: ["뜻0", "뜻1"] }), pool(10), { kind: "meaning", rng: seededRng("a"), funnyWrong: true });
+    expect(used.hasFunnyWrong).toBe(true);
+    expect(used.choices).toContain("뜻1");
+    expect(used.choices.filter((c) => c === "뜻0")).toHaveLength(1);
   });
 
   it("다른 단어가 3개 미만이면 보기를 줄이고 던지지 않는다", () => {

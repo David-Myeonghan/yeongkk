@@ -80,4 +80,34 @@ describe("pickRound — 판 구성", () => {
     pickRound(words, { today: TODAY, rng: seededRng("a") });
     expect(words.map((w) => w.id)).toEqual(ids);
   });
+
+  it("경계 직접 확인: 11-30 과 12-01 중 size 1, newCount 1 이면 12-01", () => {
+    const words = [word(0, "2026-11-30"), word(1, "2026-12-01")];
+    const round = pickRound(words, { today: TODAY, rng: seededRng("x"), size: 1, newCount: 1 });
+    expect(round.map((w) => w.id)).toEqual(["w1"]);
+  });
+
+  it("미래 addedAt 은 NEW 가 아니다", () => {
+    const words = [word(0, "2026-12-09"), word(1, "2026-12-08")];
+    const round = pickRound(words, { today: TODAY, rng: seededRng("x"), size: 1, newCount: 1 });
+    expect(round.map((w) => w.id)).toEqual(["w1"]);
+  });
+
+  it("today 가 잘못돼도 던지지 않는다", () => {
+    const words = [word(0, "2026-12-07"), word(1, "2026-01-01")];
+    expect(pickRound(words, { today: "오늘", rng: seededRng("x") })).toHaveLength(2);
+  });
+
+  it("NEW 0개에 12개면 서로 다른 10개", () => {
+    const words = Array.from({ length: 12 }, (_, i) => word(i, "2026-01-01"));
+    const round = pickRound(words, { today: TODAY, rng: seededRng("x") });
+    expect(new Set(round.map((w) => w.id)).size).toBe(10);
+  });
+
+  it("id 가 겹치는 입력은 한 번만 쓴다", () => {
+    const words = [...Array.from({ length: 6 }, (_, i) => word(i, "2026-01-01")), ...Array.from({ length: 6 }, (_, i) => word(i, "2026-01-01"))];
+    const round = pickRound(words, { today: TODAY, rng: seededRng("x") });
+    expect(round).toHaveLength(6);
+    expect(new Set(round.map((w) => w.id)).size).toBe(6);
+  });
 });

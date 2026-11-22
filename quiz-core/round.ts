@@ -37,7 +37,12 @@ export function pickRound(words: Word[], opts: RoundOptions): Word[] {
   const withinDays = opts.newWithinDays ?? 7;
   const today = utcDay(opts.today);
 
-  const active = words.filter((w) => (w.status ?? "active") === "active");
+  const seen = new Set<string>();
+  const active = words.filter((w) => {
+    if ((w.status ?? "active") !== "active" || seen.has(w.id)) return false;
+    seen.add(w.id);
+    return true;
+  });
   const fresh = shuffled(
     active.filter((w) => isNew(w, today, withinDays)),
     rng,

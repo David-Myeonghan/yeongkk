@@ -140,18 +140,22 @@ describe("GET /api/stats 집계", () => {
     expect((await stats()).days.map((d) => [d.day, d.opened])).toEqual([[D2, 1]]);
   });
 
-  it("실험별 수는 experiment_exposure 를 받은 사람만 센다", async () => {
+  it("실험별 수는 노출을 받은 사람의 같은 실험 · 같은 변형 표시가 붙은 이벤트만 센다", async () => {
     const exposure = (anon: string, exp: string, variant: string) =>
       seed(D2, anon, "experiment_exposure", { props: { exp, variant } });
+    const tag = (exp: string, variant: string, extra: Record<string, unknown> = {}) => ({ props: { exp, variant, ...extra } });
     await insertEvents(env, [
       exposure("anon-aaaaaaaa", "e1", "A"), exposure("anon-aaaaaaaa", "e1", "A"),
       exposure("anon-bbbbbbbb", "e1", "A"),
       exposure("anon-cccccccc", "e1", "B"),
       exposure("anon-aaaaaaaa", "e2", "X"),
-      seed(D2, "anon-aaaaaaaa", "round_complete"), seed(D3, "anon-aaaaaaaa", "round_complete"),
-      seed(D2, "anon-aaaaaaaa", "share_done", { props: done }),
-      seed(D2, "anon-cccccccc", "round_complete"),
-      seed(D2, "anon-dddddddd", "round_complete"), seed(D2, "anon-dddddddd", "share_done", { props: done }),
+      seed(D2, "anon-aaaaaaaa", "round_complete", tag("e1", "A")), seed(D3, "anon-aaaaaaaa", "round_complete", tag("e1", "A")),
+      seed(D2, "anon-aaaaaaaa", "share_done", tag("e1", "A", { via: "native", completed: true })),
+      seed(D2, "anon-aaaaaaaa", "round_complete", tag("e2", "X")),
+      seed(D2, "anon-aaaaaaaa", "share_done", tag("e2", "X", { via: "native", completed: true })),
+      seed(D2, "anon-cccccccc", "round_complete", tag("e1", "B")),
+      seed(D2, "anon-dddddddd", "round_complete", tag("e1", "A")),
+      seed(D2, "anon-dddddddd", "share_done", tag("e1", "A", { via: "native", completed: true })),
       seed(D2, "anon-eeeeeeee", "experiment_exposure", { props: { exp: "e1" } }),
       seed(D2, "anon-eeeeeeee", "experiment_exposure"),
       seed(D2, "anon-ffffffff", "experiment_exposure", { props: { exp: 5, variant: "A" } }),
@@ -163,12 +167,20 @@ describe("GET /api/stats 집계", () => {
     ]);
   });
 
-  it("노출 뒤 범위 밖에서만 완료한 사람은 completed 에 세지 않는다", async () => {
+  it("표시 없는 완료는 노출된 판이 아니므로 세지 않고, 표시 있는 완료와 겹쳐도 한 번만 센다", async () => {
+    const arm = (variant: string) => ({ props: { exp: "funny-wrong", variant } });
     await insertEvents(env, [
-      seed(D2, "anon-aaaaaaaa", "experiment_exposure", { props: { exp: "e1", variant: "A" } }),
-      seed("2026-12-30", "anon-aaaaaaaa", "round_complete"),
+      seed(D2, "anon-aaaaaaaa", "experiment_exposure", arm("off")),
+      seed(D2, "anon-aaaaaaaa", "round_complete"),
+      seed(D2, "anon-aaaaaaaa", "round_complete", arm("off")),
+      seed(D2, "anon-bbbbbbbb", "experiment_exposure", arm("off")),
+      seed(D2, "anon-bbbbbbbb", "round_complete"),
+      seed(D2, "anon-cccccccc", "experiment_exposure", arm("off")),
+      seed(D2, "anon-cccccccc", "round_complete", arm("on")),
     ]);
-    expect((await stats()).experiments).toEqual([{ id: "e1", variant: "A", exposed: 1, completed: 0, shared: 0 }]);
+    expect((await stats()).experiments).toEqual([
+      { id: "funny-wrong", variant: "off", exposed: 3, completed: 1, shared: 0 },
+    ]);
   });
 
   it("hosts 는 host · 앱 버전(null 은 빈 글)별 app_open 사람 수", async () => {

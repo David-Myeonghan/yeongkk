@@ -79,10 +79,12 @@ export const readStats = async (env: Env, from: string, to: string): Promise<Sta
        SUM(EXISTS (
          SELECT 1 FROM events c
          WHERE c.anon_id = x.anon_id AND c.name = 'round_complete' AND c.day BETWEEN ?1 AND ?2
+           AND json_extract(c.props, '$.exp') = x.id AND json_extract(c.props, '$.variant') = x.variant
        )) AS completed,
        SUM(EXISTS (
          SELECT 1 FROM events s
          WHERE s.anon_id = x.anon_id AND s.name = 'share_done' AND json_extract(s.props, '$.completed') = 1 AND s.day BETWEEN ?1 AND ?2
+           AND json_extract(s.props, '$.exp') = x.id AND json_extract(s.props, '$.variant') = x.variant
        )) AS shared
      FROM (
        SELECT DISTINCT json_extract(props, '$.exp') AS id, json_extract(props, '$.variant') AS variant, anon_id

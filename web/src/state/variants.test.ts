@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createExperiments } from "../experiments";
 import type { Progress, KeyValue } from "./progress";
 import { createRoundTracker } from "./rounds";
-import { funnyWrongOn, ROUND_FLAGS_KEY } from "./variants";
+import { funnyWrongOn, roundExperimentProps, ROUND_FLAGS_KEY } from "./variants";
 
 const memoryStore = (): KeyValue & { data: Map<string, string> } => {
   const data = new Map<string, string>();
@@ -165,5 +165,22 @@ describe("이벤트", () => {
     const s = setup(only("on"));
     s.begin("r1");
     expect(JSON.stringify(s.track.mock.calls)).not.toContain("단어");
+  });
+});
+
+describe("roundExperimentProps", () => {
+  it("배정된 변형이 있는 판은 exp 와 variant 를 돌려준다", () => {
+    const store = memoryStore();
+    store.set(ROUND_FLAGS_KEY, JSON.stringify({ roundId: "r1", funnyWrong: false, variant: "off" }));
+    expect(roundExperimentProps(store, "r1")).toEqual({ exp: "funny-wrong", variant: "off" });
+  });
+
+  it("저장된 값이 없거나 변형이 null 이거나 다른 판이면 빈 객체", () => {
+    const store = memoryStore();
+    expect(roundExperimentProps(store, "r1")).toEqual({});
+    store.set(ROUND_FLAGS_KEY, JSON.stringify({ roundId: "r1", funnyWrong: true, variant: null }));
+    expect(roundExperimentProps(store, "r1")).toEqual({});
+    store.set(ROUND_FLAGS_KEY, JSON.stringify({ roundId: "r1", funnyWrong: true, variant: "on" }));
+    expect(roundExperimentProps(store, "r2")).toEqual({});
   });
 });

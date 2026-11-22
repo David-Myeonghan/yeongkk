@@ -2,14 +2,15 @@ import { createGlobalTheme, globalStyle } from "@vanilla-extract/css";
 
 export const vars = createGlobalTheme(":root", {
   color: {
+    // index.html theme-color metas mirror background (light/dark)
     background: "#ffffff",
     surface: "#f4f5f7",
     text: "#17181a",
     muted: "#6b7078",
     accent: "#3b5bfd",
     onAccent: "#ffffff",
-    correct: "#1f9d55",
-    wrong: "#d93f3f",
+    correct: "#177a40",
+    wrong: "#c62f2f",
   },
   space: { xs: "4px", sm: "8px", md: "16px", lg: "24px", xl: "40px" },
   radius: { sm: "8px", md: "14px", lg: "20px" },
@@ -24,6 +25,7 @@ export const vars = createGlobalTheme(":root", {
 });
 
 globalStyle(":root", {
+  colorScheme: "light dark",
   "@media": {
     "(prefers-color-scheme: dark)": {
       vars: {

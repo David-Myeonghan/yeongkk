@@ -29,4 +29,8 @@ export const startButton = style({
   fontSize: vars.fontSize.lg,
   fontWeight: 700,
   cursor: "pointer",
+  selectors: {
+    "&:focus-visible": { outline: `3px solid ${vars.color.text}`, outlineOffset: "3px" },
+    "&:active": { opacity: 0.8, transform: "scale(0.98)" },
+  },
 });

@@ -8,6 +8,7 @@ const sibling = (dir: string) => fileURLToPath(new URL(`../${dir}`, import.meta.
 export default defineConfig({
   plugins: [react(), vanillaExtractPlugin()],
   resolve: {
+    // subpath imports only (e.g. @yk/bridge/protocol); no index file
     alias: {
       "@yk/bridge": sibling("bridge"),
       "@yk/quiz-core": sibling("quiz-core"),

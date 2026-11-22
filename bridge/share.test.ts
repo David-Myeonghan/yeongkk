@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { BridgeError, PROTOCOL_VERSION } from "./protocol";
 import { share } from "./share";
-import { createWebBridge } from "./web";
+import { createWebBridge, type WebBridge } from "./web";
 
 const card = { title: "영크크", text: "10점", url: "https://yeongkk.example/r/1" };
 const info = { protocol: PROTOCOL_VERSION, appVersion: "1.0.0", platform: "ios", capabilities: { share: 1 } };
@@ -45,7 +45,7 @@ describe("share 대신하기 가지", () => {
 
   it("앱 호출은 60초까지 기다린다고 요청한다", async () => {
     const call = vi.fn(async () => ({ completed: true }));
-    await share({ ...browser(), call }, card, {});
+    await share({ ...browser(), call: call as unknown as WebBridge["call"] }, card, {});
     expect(call).toHaveBeenCalledWith("share", card, { timeoutMs: 60000 });
   });
 

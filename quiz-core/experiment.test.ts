@@ -1,0 +1,46 @@
+import { describe, expect, it } from "vitest";
+import { assignVariant, type Experiment } from "./experiment";
+import { seededRng } from "./rng";
+
+const exp = (id: string, variants = [{ name: "a", weight: 1 }, { name: "b", weight: 1 }]): Experiment => ({
+  id,
+  variants,
+  enabled: true,
+});
+
+describe("assignVariant", () => {
+  it("같은 anonId + 같은 실험은 언제나 같은 변형", () => {
+    const first = assignVariant("user-1", exp("funny"));
+    for (let i = 0; i < 10; i++) expect(assignVariant("user-1", exp("funny"))).toBe(first);
+  });
+
+  it("실험 id 가 다르면 배정이 따로 논다", () => {
+    const ids = Array.from({ length: 200 }, (_, i) => `u${i}`);
+    const same = ids.every((id) => assignVariant(id, exp("e1")) === assignVariant(id, exp("e2")));
+    expect(same).toBe(false);
+  });
+
+  it("무작위 값 10,000개, 1:1 이면 각 변형이 4,800~5,200", () => {
+    const rng = seededRng("assign");
+    const counts: Record<string, number> = { a: 0, b: 0 };
+    for (let i = 0; i < 10_000; i++) {
+      const id = Math.floor(rng() * 2 ** 32).toString(16) + Math.floor(rng() * 2 ** 32).toString(16);
+      counts[assignVariant(id, exp("funny"))!]!++;
+    }
+    expect(counts.a).toBeGreaterThanOrEqual(4800);
+    expect(counts.a).toBeLessThanOrEqual(5200);
+    expect(counts.b).toBeGreaterThanOrEqual(4800);
+    expect(counts.b).toBeLessThanOrEqual(5200);
+  });
+
+  it("가중치 0 인 변형은 배정되지 않는다", () => {
+    const e = exp("x", [{ name: "zero", weight: 0 }, { name: "one", weight: 1 }, { name: "neg", weight: -3 }, { name: "nan", weight: NaN }]);
+    for (let i = 0; i < 500; i++) expect(assignVariant(`u${i}`, e)).toBe("one");
+  });
+
+  it("꺼져 있거나 변형이 비었거나 가중치 합이 0 이면 null", () => {
+    expect(assignVariant("u", { ...exp("x"), enabled: false })).toBeNull();
+    expect(assignVariant("u", exp("x", []))).toBeNull();
+    expect(assignVariant("u", exp("x", [{ name: "a", weight: 0 }]))).toBeNull();
+  });
+});

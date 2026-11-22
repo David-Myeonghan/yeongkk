@@ -1,11 +1,12 @@
-type Handler = (request: Request, env: Env) => Response | Promise<Response>;
+import { postEvents } from "./events";
+import { json, type Handler, type Now } from "./http";
+
 type Routes = Record<string, Partial<Record<string, Handler>>>;
 
-const routes: Routes = {
+export const routes: Routes = {
   "/api/health": { GET: () => new Response("ok") },
+  "/api/events": { POST: postEvents },
 };
-
-const json = (code: string, status: number) => Response.json({ code }, { status });
 
 const ownValue = <T>(table: Record<string, T>, key: string): T | undefined =>
   Object.hasOwn(table, key) ? table[key] : undefined;
@@ -21,30 +22,30 @@ const isForbiddenOrigin = (request: Request, env: Env): boolean => {
   return origin !== new URL(request.url).origin && !allowedOrigins(env).includes(origin);
 };
 
-const handleApi = async (request: Request, env: Env, table: Routes): Promise<Response> => {
+const handleApi = async (request: Request, env: Env, table: Routes, now: Now): Promise<Response> => {
   if (isForbiddenOrigin(request, env)) return json("FORBIDDEN_ORIGIN", 403);
   const route = ownValue(table, new URL(request.url).pathname);
   if (route === undefined) return json("NOT_FOUND", 404);
   if (request.method === "HEAD" && ownValue(route, "HEAD") === undefined) {
     const get = ownValue(route, "GET");
     if (get !== undefined) {
-      const res = await get(request, env);
+      const res = await get(request, env, now);
       return new Response(null, { status: res.status, headers: res.headers });
     }
   }
   const handler = ownValue(route, request.method);
   if (handler === undefined) return json("METHOD_NOT_ALLOWED", 405);
-  return handler(request, env);
+  return handler(request, env, now);
 };
 
 type Worker = { fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> };
 
-export const createHandler = (table: Routes): Worker =>
+export const createHandler = (table: Routes, now: Now = Date.now): Worker =>
   ({
     async fetch(request, env) {
       if (!new URL(request.url).pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
       try {
-        return await handleApi(request, env, table);
+        return await handleApi(request, env, table, now);
       } catch (error) {
         console.error("api error", error);
         return json("INTERNAL_ERROR", 500);

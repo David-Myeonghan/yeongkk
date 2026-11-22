@@ -46,6 +46,11 @@ describe("loadWords", () => {
     expect(await loadWords(fetchFn, "ko-KR")).toEqual({ ok: false, reason: "network" });
   });
 
+  it("본문을 읽다 실패하면 network", async () => {
+    const fetchFn = (async () => ({ ok: true, text: () => Promise.reject(new Error("aborted")) })) as unknown as typeof fetch;
+    expect(await loadWords(fetchFn, "ko-KR")).toEqual({ ok: false, reason: "network" });
+  });
+
   it("OK가 아닌 응답은 network", async () => {
     expect(await loadWords(json({ words: [good] }, { status: 500 }), "ko-KR")).toEqual({
       ok: false,

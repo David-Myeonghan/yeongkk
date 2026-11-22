@@ -17,13 +17,19 @@ function toWord(raw: unknown): Word | null {
 }
 
 export async function loadWords(fetchFn: typeof fetch, locale: string): Promise<LoadWordsResult> {
-  let body: unknown;
+  let text: string;
   try {
     const res = await fetchFn(`/words.${locale}.json`, { cache: "no-cache" });
     if (!res.ok) return { ok: false, reason: "network" };
-    body = await res.json();
-  } catch (error) {
-    return { ok: false, reason: error instanceof SyntaxError ? "bad-shape" : "network" };
+    text = await res.text();
+  } catch {
+    return { ok: false, reason: "network" };
+  }
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return { ok: false, reason: "bad-shape" };
   }
   if (!isRecord(body) || !Array.isArray(body.words)) return { ok: false, reason: "bad-shape" };
   const words = body.words.map(toWord).filter((w): w is Word => w !== null);

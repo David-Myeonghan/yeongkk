@@ -1,6 +1,6 @@
 import { DEFAULT_CONFIG, type RemoteConfig } from "@yk/quiz-core/config";
 import type { Experiment } from "@yk/quiz-core/experiment";
-import { isRecord, isString } from "./guards";
+import { isRecord, isSafeApiBase, isString } from "./guards";
 
 function flag(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
@@ -19,16 +19,17 @@ function toExperiment(raw: unknown): Experiment | null {
   return { id, enabled, variants: parsed };
 }
 
-function toApi(value: unknown): string {
-  if (!isString(value)) return DEFAULT_CONFIG.api;
-  const relative = value.startsWith("/") && !value.startsWith("//");
-  return relative || value.startsWith("https://") ? value : DEFAULT_CONFIG.api;
-}
-
-function fromRaw(raw: unknown): RemoteConfig {
+function fromRaw(raw: Record<string, unknown>): RemoteConfig {
   const base = DEFAULT_CONFIG;
-  if (!isRecord(raw)) return fromRaw({});
   const features = isRecord(raw.features) ? raw.features : {};
+  const seen = new Set<string>();
+  const experiments = Array.isArray(raw.experiments)
+    ? raw.experiments.map(toExperiment).filter((e): e is Experiment => {
+        if (e === null || seen.has(e.id)) return false;
+        seen.add(e.id);
+        return true;
+      })
+    : [];
   const config: RemoteConfig = {
     version: typeof raw.version === "number" && Number.isFinite(raw.version) ? raw.version : base.version,
     features: {
@@ -36,22 +37,27 @@ function fromRaw(raw: unknown): RemoteConfig {
       ask: flag(features.ask, base.features.ask),
       ads: flag(features.ads, base.features.ads),
     },
-    experiments: Array.isArray(raw.experiments)
-      ? raw.experiments.map(toExperiment).filter((e): e is Experiment => e !== null)
-      : [],
-    api: toApi(raw.api),
+    experiments,
+    api: isSafeApiBase(raw.api) ? raw.api : base.api,
   };
   if (isString(raw.minShell)) config.minShell = raw.minShell;
   return config;
 }
 
 export async function loadConfig(fetchFn: typeof fetch, locale: string): Promise<RemoteConfig> {
+  let text: string;
   try {
     const res = await fetchFn(`/config.${locale}.json`, { cache: "no-cache" });
-    if (!res.ok) return fromRaw(undefined);
-    const body: unknown = await res.json();
-    return isRecord(body) ? fromRaw(body) : fromRaw(undefined);
+    if (!res.ok) return fromRaw({});
+    text = await res.text();
   } catch {
-    return fromRaw(undefined);
+    return fromRaw({});
   }
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return fromRaw({});
+  }
+  return fromRaw(isRecord(body) ? body : {});
 }

@@ -85,6 +85,8 @@ describe("loadConfig", () => {
   it("api는 단일 / 또는 https://만 허용한다", async () => {
     const api = async (value: unknown) => (await loadConfig(json({ api: value }), "ko-KR")).api;
     expect(await api("//evil.example")).toBe("/api");
+    expect(await api("/\\evil.com")).toBe("/api");
+    expect(await api("/\t/evil.com")).toBe("/api");
     expect(await api("http://evil.example")).toBe("/api");
     expect(await api("javascript:alert(1)")).toBe("/api");
     expect(await api("api")).toBe("/api");
@@ -111,6 +113,18 @@ describe("loadConfig", () => {
       "ko-KR",
     );
     expect(r.experiments).toEqual([ok]);
+  });
+
+  it("본문을 읽다 실패하면 기본값", async () => {
+    const fetchFn = (async () => ({ ok: true, text: () => Promise.reject(new Error("aborted")) })) as unknown as typeof fetch;
+    expect(await loadConfig(fetchFn, "ko-KR")).toEqual(DEFAULT_CONFIG);
+  });
+
+  it("같은 id의 실험은 처음 것만 남긴다", async () => {
+    const first = { id: "dup", enabled: true, variants: [{ name: "a", weight: 1 }] };
+    const second = { id: "dup", enabled: false, variants: [{ name: "b", weight: 2 }] };
+    const r = await loadConfig(json({ experiments: [first, second] }), "ko-KR");
+    expect(r.experiments).toEqual([first]);
   });
 
   it("실험의 모르는 칸은 복사하지 않는다", async () => {

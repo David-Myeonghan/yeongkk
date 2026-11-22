@@ -7,7 +7,6 @@ declare namespace Cloudflare {
     ASSETS: Fetcher;
     ALLOWED_ORIGINS: string;
     STATS_TOKEN: string;
-    TEST_MIGRATIONS: import("cloudflare:test").D1Migration[];
   }
 }
 

@@ -52,6 +52,7 @@ export type Stats = {
   experiments: { id: string; variant: string; exposed: number; completed: number; shared: number }[];
   hosts: { host: string; appVersion: string; opened: number }[];
   shareVia: Record<string, number>;
+  shareAttempts: Record<string, number>;
 };
 
 export const readStats = async (env: Env, from: string, to: string): Promise<Stats> => {
@@ -60,7 +61,7 @@ export const readStats = async (env: Env, from: string, to: string): Promise<Sta
        COUNT(DISTINCT CASE WHEN name = 'app_open' THEN anon_id END) AS opened,
        COUNT(DISTINCT CASE WHEN name = 'round_start' THEN anon_id END) AS started,
        COUNT(DISTINCT CASE WHEN name = 'round_complete' THEN anon_id END) AS completed,
-       COUNT(DISTINCT CASE WHEN name = 'share_done' THEN anon_id END) AS shared
+       COUNT(DISTINCT CASE WHEN name = 'share_done' AND json_extract(props, '$.completed') = 1 THEN anon_id END) AS shared
      FROM events WHERE day BETWEEN ? AND ? GROUP BY day ORDER BY day`,
   ).bind(from, to);
   const returned = env.DB.prepare(
@@ -81,7 +82,7 @@ export const readStats = async (env: Env, from: string, to: string): Promise<Sta
        )) AS completed,
        SUM(EXISTS (
          SELECT 1 FROM events s
-         WHERE s.anon_id = x.anon_id AND s.name = 'share_done' AND s.day BETWEEN ?1 AND ?2
+         WHERE s.anon_id = x.anon_id AND s.name = 'share_done' AND json_extract(s.props, '$.completed') = 1 AND s.day BETWEEN ?1 AND ?2
        )) AS shared
      FROM (
        SELECT DISTINCT json_extract(props, '$.exp') AS id, json_extract(props, '$.variant') AS variant, anon_id
@@ -99,12 +100,19 @@ export const readStats = async (env: Env, from: string, to: string): Promise<Sta
   const shareVia = env.DB.prepare(
     `SELECT json_extract(props, '$.via') AS via, COUNT(*) AS n
      FROM events
+     WHERE name = 'share_done' AND json_extract(props, '$.completed') = 1
+       AND day BETWEEN ? AND ? AND json_type(props, '$.via') = 'text'
+     GROUP BY via`,
+  ).bind(from, to);
+  const shareAttempts = env.DB.prepare(
+    `SELECT json_extract(props, '$.via') AS via, COUNT(*) AS n
+     FROM events
      WHERE name = 'share_done' AND day BETWEEN ? AND ? AND json_type(props, '$.via') = 'text'
      GROUP BY via`,
   ).bind(from, to);
 
-  const [f, r, e, h, v] = await env.DB.batch<Record<string, string | number>>([
-    funnel, returned, experiments, hosts, shareVia,
+  const [f, r, e, h, v, a] = await env.DB.batch<Record<string, string | number>>([
+    funnel, returned, experiments, hosts, shareVia, shareAttempts,
   ]);
   const returnedByDay = new Map((r?.results ?? []).map((row) => [String(row.day), Number(row.n)]));
   return {
@@ -129,5 +137,6 @@ export const readStats = async (env: Env, from: string, to: string): Promise<Sta
       opened: Number(row.opened),
     })),
     shareVia: Object.fromEntries((v?.results ?? []).map((row) => [String(row.via), Number(row.n)])),
+    shareAttempts: Object.fromEntries((a?.results ?? []).map((row) => [String(row.via), Number(row.n)])),
   };
 };

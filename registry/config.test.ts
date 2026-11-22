@@ -48,7 +48,7 @@ test("features 칸이 빠지면 거절", () => {
 });
 test("api 는 / 로 시작하거나 https:// 만", () => {
   for (const ok of ["/api", "https://example.com/api"]) expect(checkConfig(cfg(good({ api: ok }))), ok).toEqual([]);
-  for (const bad of ["//x", "//evil.com", "http://example.com", "", "api"]) expect(checkConfig(cfg(good({ api: bad }))).length, bad).toBeGreaterThan(0);
+  for (const bad of ["//x", "//evil.com", "/\\evil.com", "/\t/evil.com", "/api\\x", "https://", "http://example.com", "", "api", "/" + "a".repeat(200)]) expect(checkConfig(cfg(good({ api: bad }))).length, bad).toBeGreaterThan(0);
 });
 test("JSON 아니면 형식 문제", () => {
   const ps = checkConfig({ ...cfg(undefined), parseError: "boom" });

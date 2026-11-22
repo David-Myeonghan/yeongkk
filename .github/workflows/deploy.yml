@@ -1,0 +1,67 @@
+name: deploy
+# main 에 합쳐지면 게시한다. 웹 파일 · 단어 · 설정 · API 가 Worker 하나로 같이 올라간다.
+# PR 의 코드는 여기서 돌지 않는다(push 와 손으로 돌리기만). 비밀값은 Cloudflare 를 부르는 단계에만 준다.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "words/**"
+      - "config/**"
+      - "registry/**"
+      - "schema/**"
+      - "web/**"
+      - "bridge/**"
+      - "quiz-core/**"
+      - "api/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - name: DB 가 만들어졌는지 확인
+        run: |
+          if grep -q '00000000-0000-0000-0000-000000000000' api/wrangler.jsonc; then
+            echo "::error::api/wrangler.jsonc 의 database_id 가 자리 표시 값입니다. d1-create 워크플로를 돌리고 그 값을 넣으세요."
+            exit 1
+          fi
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - run: npm run build -w web
+      - name: 단어 · 설정을 웹 폴더로
+        run: cp dist/*.json web/dist/
+      - name: 표 바꾸기 (D1 마이그레이션)
+        working-directory: api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler d1 migrations apply yeongkk --remote
+      - name: 올리기
+        working-directory: api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          STATS_TOKEN: ${{ secrets.STATS_TOKEN }}
+        run: |
+          if [ -n "$STATS_TOKEN" ]; then
+            umask 077
+            printf 'STATS_TOKEN=%s\n' "$STATS_TOKEN" > "$RUNNER_TEMP/secrets.env"
+            npx wrangler deploy --secrets-file "$RUNNER_TEMP/secrets.env"
+            rm -f "$RUNNER_TEMP/secrets.env"
+          else
+            echo "::warning::STATS_TOKEN 비밀값이 없습니다. /api/stats 는 401 만 답합니다."
+            npx wrangler deploy
+          fi

@@ -16,6 +16,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24 }
       - run: npm ci
+      - run: npm run lint
       - run: npm test
       - run: npm run typecheck
   # collect job 은 2부 Task 17 (collect/ 생성) 뒤에 주석을 풀어 켠다.

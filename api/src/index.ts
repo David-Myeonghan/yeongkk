@@ -1,4 +1,5 @@
 import { postEvents } from "./events";
+import { postReports } from "./reports";
 import { json, type Handler, type Now } from "./http";
 
 type Routes = Record<string, Partial<Record<string, Handler>>>;
@@ -6,6 +7,7 @@ type Routes = Record<string, Partial<Record<string, Handler>>>;
 export const routes: Routes = {
   "/api/health": { GET: () => new Response("ok") },
   "/api/events": { POST: postEvents },
+  "/api/reports": { POST: postReports },
 };
 
 const ownValue = <T>(table: Record<string, T>, key: string): T | undefined =>

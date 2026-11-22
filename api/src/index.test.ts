@@ -115,15 +115,16 @@ describe("출처 검사", () => {
 });
 
 describe("D1 표", () => {
-  it("events · reports 표와 색인 셋이 있다", async () => {
+  it("events · reports 표와 색인 넷이 있다", async () => {
     const { results } = await env.DB.prepare(
-      "SELECT name FROM sqlite_master WHERE name IN ('events','reports','events_day_name','events_anon_day','reports_locale_word') ORDER BY name",
+      "SELECT name FROM sqlite_master WHERE name IN ('events','reports','events_day_name','events_anon_day','reports_locale_word','reports_anon_day') ORDER BY name",
     ).all<{ name: string }>();
     expect(results.map((r) => r.name)).toEqual([
       "events",
       "events_anon_day",
       "events_day_name",
       "reports",
+      "reports_anon_day",
       "reports_locale_word",
     ]);
   });

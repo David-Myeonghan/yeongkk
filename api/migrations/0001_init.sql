@@ -15,8 +15,10 @@ CREATE INDEX events_anon_day ON events (anon_id, day);
 CREATE TABLE reports (
   id INTEGER PRIMARY KEY,
   received_at TEXT NOT NULL,
+  day TEXT NOT NULL,
   locale TEXT NOT NULL,
   word TEXT NOT NULL,
   anon_id TEXT NOT NULL
 );
 CREATE INDEX reports_locale_word ON reports (locale, word);
+CREATE INDEX reports_anon_day ON reports (anon_id, day);

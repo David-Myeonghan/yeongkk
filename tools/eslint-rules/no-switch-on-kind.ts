@@ -1,18 +1,21 @@
+import type { Rule } from "eslint";
+import type { Node } from "estree";
+
 const TAGS = new Set(["kind", "type", "status"]);
 const WRAPPERS = new Set(["TSAsExpression", "TSSatisfiesExpression", "TSTypeAssertion", "TSNonNullExpression"]);
 
-function wrapped(node) {
+function wrapped(node: Node): Node | undefined {
   if (!WRAPPERS.has(node.type)) return undefined;
-  return node.expression;
+  return (node as { expression?: Node }).expression;
 }
 
-function memberName(node) {
+function memberName(node: Node & { type: "MemberExpression" }): string | undefined {
   const p = node.property;
   if (node.computed) return p.type === "Literal" && typeof p.value === "string" ? p.value : undefined;
   return p.type === "Identifier" || p.type === "PrivateIdentifier" ? p.name : undefined;
 }
 
-function isTagged(node) {
+function isTagged(node: Node): boolean {
   const inner = wrapped(node);
   if (inner !== undefined) return isTagged(inner);
   if (node.type === "ChainExpression") return isTagged(node.expression);
@@ -31,8 +34,7 @@ function isTagged(node) {
   return false;
 }
 
-/** @type {import("eslint").Rule.RuleModule} */
-export default {
+const rule: Rule.RuleModule = {
   meta: {
     type: "problem",
     schema: [],
@@ -48,3 +50,5 @@ export default {
     };
   },
 };
+
+export default rule;

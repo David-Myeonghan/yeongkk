@@ -39,6 +39,9 @@ export function checkConfig(c: LoadedConfig): Problem[] {
     for (const v of exp.variants) {
       if (names.has(v.name)) out.push(P(c.path, "실험", `실험 ${exp.id} 변형 이름 중복: ${v.name}`)); else names.add(v.name);
     }
+    if (exp.id === "funny-wrong" && !(names.size === 2 && names.has("on") && names.has("off"))) {
+      out.push(P(c.path, "실험", `실험 funny-wrong 의 변형 이름은 "on" 과 "off" 두 개여야 해요 (앱이 이 이름을 그대로 써요): ${[...names].join(", ")}`));
+    }
   }
   return out;
 }

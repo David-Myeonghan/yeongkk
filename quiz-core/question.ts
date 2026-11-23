@@ -23,16 +23,18 @@ const CHOICE_COUNT = 4;
 
 export function makeQuestion(target: Word, pool: Word[], opts: QuestionOptions): Question {
   const { kind, rng } = opts;
-  const { prompt, answer, textOf } = match(kind)
+  const { prompt, answer, textOf, promptOf } = match(kind)
     .with("meaning", () => ({
       prompt: target.word,
       answer: target.meaning,
       textOf: (w: Word) => w.meaning,
+      promptOf: (w: Word) => w.word,
     }))
     .with("word", () => ({
       prompt: target.meaning,
       answer: target.word,
       textOf: (w: Word) => w.word,
+      promptOf: (w: Word) => w.meaning,
     }))
     .exhaustive();
 
@@ -56,7 +58,7 @@ export function makeQuestion(target: Word, pool: Word[], opts: QuestionOptions):
   }
 
   for (const other of shuffled(
-    pool.filter((w) => w.id !== target.id),
+    pool.filter((w) => w.id !== target.id && promptOf(w) !== prompt),
     rng,
   )) {
     addWrong(textOf(other));

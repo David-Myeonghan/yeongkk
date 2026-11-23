@@ -67,11 +67,13 @@ describe("pickRound — 판 구성", () => {
   });
 
   it("잘못된 addedAt 은 NEW 가 아니고 던지지 않는다", () => {
-    const words = [word(0, "어제"), word(1, "2026-13-45"), word(2, "2026-12-07")];
-    const round = pickRound(words, { today: TODAY, rng: seededRng("x"), size: 3, newCount: 3 });
-    expect(round).toHaveLength(3);
-    const one = pickRound(words, { today: TODAY, rng: seededRng("x"), size: 1, newCount: 1 });
-    expect(one.map((w) => w.id)).toEqual(["w2"]);
+    const words = [word(0, "어제"), word(1, "2026-13-45"), word(2, "2026-11-31"), word(3, "2026-12-02")];
+    for (const seed of ["a", "b", "c", "d", "e", "f"]) {
+      const round = pickRound(words, { today: "2026-12-03", rng: seededRng(seed), size: 4, newCount: 3 });
+      expect(round).toHaveLength(4);
+      const one = pickRound(words, { today: "2026-12-03", rng: seededRng(seed), size: 1, newCount: 1 });
+      expect(one.map((w) => w.id)).toEqual(["w3"]);
+    }
   });
 
   it("입력 배열을 바꾸지 않는다", () => {
@@ -89,13 +91,21 @@ describe("pickRound — 판 구성", () => {
 
   it("미래 addedAt 은 NEW 가 아니다", () => {
     const words = [word(0, "2026-12-09"), word(1, "2026-12-08")];
-    const round = pickRound(words, { today: TODAY, rng: seededRng("x"), size: 1, newCount: 1 });
-    expect(round.map((w) => w.id)).toEqual(["w1"]);
+    for (const seed of ["a", "b", "c", "d", "e", "f"]) {
+      const round = pickRound(words, { today: TODAY, rng: seededRng(seed), size: 1, newCount: 1 });
+      expect(round.map((w) => w.id)).toEqual(["w1"]);
+    }
   });
 
-  it("today 가 잘못돼도 던지지 않는다", () => {
-    const words = [word(0, "2026-12-07"), word(1, "2026-01-01")];
-    expect(pickRound(words, { today: "오늘", rng: seededRng("x") })).toHaveLength(2);
+  it("today 가 YYYY-MM-DD 가 아니면 던진다", () => {
+    const words = [word(0, "2026-12-07")];
+    expect(() => pickRound(words, { today: "오늘", rng: seededRng("x") })).toThrow(/today.*"오늘"/);
+    expect(() => pickRound(words, { today: "2026-02-30", rng: seededRng("x") })).toThrow(/2026-02-30/);
+  });
+
+  it("today 에 ISO 타임스탬프를 넣으면 던진다", () => {
+    const iso = "2026-12-08T09:30:00.000Z";
+    expect(() => pickRound([word(0, "2026-12-07")], { today: iso, rng: seededRng("x") })).toThrow(iso);
   });
 
   it("NEW 0개에 12개면 서로 다른 10개", () => {

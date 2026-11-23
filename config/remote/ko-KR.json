@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "features": { "report": true, "ask": false, "ads": false },
+  "experiments": [
+    {
+      "id": "funny-wrong",
+      "enabled": false,
+      "variants": [
+        { "name": "on", "weight": 1 },
+        { "name": "off", "weight": 1 }
+      ]
+    }
+  ],
+  "api": "/api"
+}

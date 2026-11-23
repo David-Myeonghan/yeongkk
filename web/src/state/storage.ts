@@ -3,7 +3,7 @@ import type { KeyValue } from "./progress";
 type WebStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 export function createStore(open: () => WebStorage | undefined = () => globalThis.localStorage): KeyValue {
-  const memory = new Map<string, string>();
+  const memory = new Map<string, string | null>();
   let storage: WebStorage | null | undefined;
 
   const backing = (): WebStorage | null => {
@@ -19,37 +19,36 @@ export function createStore(open: () => WebStorage | undefined = () => globalThi
 
   return {
     get(key) {
+      if (memory.has(key)) return memory.get(key) ?? null;
       const s = backing();
-      if (s) {
-        try {
-          return s.getItem(key);
-        } catch {
-          storage = null;
-        }
+      if (!s) return null;
+      try {
+        return s.getItem(key);
+      } catch {
+        return null;
       }
-      return memory.get(key) ?? null;
     },
     set(key, value) {
       const s = backing();
       if (s) {
         try {
           s.setItem(key, value);
+          memory.delete(key);
           return;
         } catch {
-          storage = null;
+          // 이 키만 메모리에 둔다
         }
       }
       memory.set(key, value);
     },
     remove(key) {
-      memory.delete(key);
       const s = backing();
-      if (s) {
-        try {
-          s.removeItem(key);
-        } catch {
-          storage = null;
-        }
+      memory.delete(key);
+      if (!s) return;
+      try {
+        s.removeItem(key);
+      } catch {
+        memory.set(key, null);
       }
     },
   };

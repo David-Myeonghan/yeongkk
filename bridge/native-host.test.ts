@@ -54,6 +54,67 @@ describe("createNativeHost", () => {
     expect(await call(host, "share")).toMatchObject({ ok: false, error: { code: "FAILED" } });
   });
 
+  it("문자열로 만들 수 없는 값을 던져도 고정 문구로 FAILED", async () => {
+    const host = make({ share: { version: 1, handle: () => { throw Object.create(null); } } });
+    expect(await call(host, "share")).toMatchObject({ id: "r1", ok: false, error: { code: "FAILED", message: "handler failed" } });
+  });
+
+  it("Error 가 아닌 객체의 toString 이 던져도 FAILED", async () => {
+    const host = make({ share: { version: 1, handle: () => { throw { toString: () => { throw new Error("x"); } }; } } });
+    expect(await call(host, "share")).toMatchObject({ ok: false, error: { code: "FAILED", message: "handler failed" } });
+  });
+
+  it("빈 코드의 BridgeError 는 FAILED 로 답한다", async () => {
+    const host = make({ share: { version: 1, handle: () => { throw new BridgeError("", "no code"); } } });
+    expect(await call(host, "share")).toMatchObject({ ok: false, error: { code: "FAILED", message: "no code" } });
+  });
+
+  it("문자열이 아닌 코드도 FAILED", async () => {
+    const host = make({
+      share: {
+        version: 1,
+        handle: () => {
+          const e = new BridgeError("X");
+          (e as unknown as { code: unknown }).code = 42;
+          throw e;
+        },
+      },
+    });
+    expect(await call(host, "share")).toMatchObject({ ok: false, error: { code: "FAILED" } });
+  });
+
+  it("직렬화할 수 없는 결과는 FAILED 로 답한다", async () => {
+    const host = make({ share: { version: 1, handle: () => 1n } });
+    expect(await call(host, "share")).toMatchObject({ id: "r1", ok: false, error: { code: "FAILED" } });
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    const loop = make({ share: { version: 1, handle: () => circular } });
+    expect(await call(loop, "share")).toMatchObject({ ok: false, error: { code: "FAILED" } });
+  });
+
+  it("id 가 있는 요청이 모양이 틀리면 BAD_REQUEST 로 답한다", async () => {
+    const host = make();
+    for (const bad of [{ v: 1, kind: "request", id: "q1" }, { v: 1, kind: "request", id: "q1", name: 5 }]) {
+      const raw = await host.handle(JSON.stringify(bad));
+      expect(JSON.parse(raw!)).toEqual({ v: 1, kind: "response", id: "q1", ok: false, error: { code: "BAD_REQUEST", message: expect.any(String) } });
+    }
+  });
+
+  it("다른 규약 버전의 요청도 id 가 있으면 현재 버전으로 BAD_REQUEST", async () => {
+    const raw = await make().handle(JSON.stringify({ v: 2, kind: "request", id: "q2", name: "share" }));
+    expect(JSON.parse(raw!)).toMatchObject({ v: 1, kind: "response", id: "q2", ok: false, error: { code: "BAD_REQUEST" } });
+  });
+
+  it("id 가 없거나 비었거나 문자열이 아니면, 응답 · 이벤트는 여전히 null", async () => {
+    const host = make();
+    expect(await host.handle(JSON.stringify({ v: 2, kind: "request", name: "share" }))).toBeNull();
+    expect(await host.handle(JSON.stringify({ v: 1, kind: "request", id: "", name: "share" }))).toBeNull();
+    expect(await host.handle(JSON.stringify({ v: 1, kind: "request", id: 7, name: "share" }))).toBeNull();
+    expect(await host.handle(JSON.stringify({ v: 2, kind: "response", id: "q", ok: true }))).toBeNull();
+    expect(await host.handle(JSON.stringify({ v: 2, kind: "event", id: "q", name: "e" }))).toBeNull();
+    expect(await host.handle(JSON.stringify([1]))).toBeNull();
+  });
+
   it("깨진 입력 · 응답 · 이벤트는 null", async () => {
     const host = make();
     expect(await host.handle("{not json")).toBeNull();

@@ -10,6 +10,34 @@ import {
 
 export type Handlers = Record<string, { version: number; handle: (payload: unknown) => unknown | Promise<unknown> }>;
 
+const FALLBACK_MESSAGE = "handler failed";
+
+function failureText(e: unknown): string {
+  try {
+    const text = e instanceof Error ? e.message : String(e);
+    return typeof text === "string" ? text : FALLBACK_MESSAGE;
+  } catch {
+    return FALLBACK_MESSAGE;
+  }
+}
+
+function failureCode(e: unknown): string {
+  if (!(e instanceof BridgeError)) return "FAILED";
+  const code: unknown = e.code;
+  return typeof code === "string" && code.length > 0 ? code : "FAILED";
+}
+
+function rejectedRequestId(raw: string): string | null {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
+    const { kind, id } = parsed as Record<string, unknown>;
+    return kind === "request" && typeof id === "string" && id.length > 0 ? id : null;
+  } catch {
+    return null;
+  }
+}
+
 export interface NativeHost {
   info(): HostInfo;
   handle(raw: string): Promise<string | null>;
@@ -35,9 +63,7 @@ export function createNativeHost(opts: { appVersion: string; platform: string; h
       const result = await handlers[req.name].handle(req.payload);
       return JSON.stringify(response.ok(req.id, result));
     } catch (e) {
-      const code = e instanceof BridgeError ? e.code : "FAILED";
-      const message = e instanceof Error ? e.message : String(e);
-      return JSON.stringify(response.fail(req.id, code, message));
+      return JSON.stringify(response.fail(req.id, failureCode(e), failureText(e)));
     }
   }
 
@@ -46,7 +72,10 @@ export function createNativeHost(opts: { appVersion: string; platform: string; h
     async handle(raw) {
       try {
         const msg = parseMessage(raw);
-        if (msg === null) return null;
+        if (msg === null) {
+          const id = rejectedRequestId(raw);
+          return id === null ? null : JSON.stringify(response.fail(id, "BAD_REQUEST", "invalid request"));
+        }
         return await match(msg)
           .with({ kind: "request" }, (req) => answer(req))
           .with({ kind: "response" }, () => null)

@@ -3,7 +3,7 @@ import { insertEvents, type EventRow } from "./db";
 import { noContent, type Handler } from "./http";
 import { dayOf } from "./time";
 import {
-  isObject, parseAnonId, parseAppVersion, parseHost, parseLocale, readJsonObject, badRequest, tooLarge,
+  isObject, parseAppVersion, parseHost, readIdentified, badRequest, tooLarge,
 } from "./validate";
 
 const MAX_EVENTS = 50;
@@ -33,13 +33,11 @@ const sanitizeProps = (raw: unknown): string | null => {
 };
 
 export const postEvents: Handler = async (request, env, now) => {
-  const read = await readJsonObject(request);
+  const read = await readIdentified(request);
   if (!read.ok) return read.response;
-  const body = read.value;
-  const anonId = parseAnonId(body.anonId);
-  const locale = parseLocale(body.locale);
+  const { anonId, locale, body } = read.value;
   const host = parseHost(body.host);
-  if (anonId === null || locale === null || host === null || !Array.isArray(body.events)) return badRequest();
+  if (host === null || !Array.isArray(body.events)) return badRequest();
   if (body.events.length > MAX_EVENTS) return tooLarge();
 
   const at = now();

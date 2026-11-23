@@ -23,9 +23,9 @@ function utcDay(date: string): number | null {
   return ms / DAY_MS;
 }
 
-function isNew(word: Word, today: number | null, withinDays: number): boolean {
+function isNew(word: Word, today: number, withinDays: number): boolean {
   const added = utcDay(word.addedAt);
-  if (today === null || added === null) return false;
+  if (added === null) return false;
   const age = today - added;
   return age >= 0 && age <= withinDays;
 }
@@ -36,6 +36,7 @@ export function pickRound(words: Word[], opts: RoundOptions): Word[] {
   const newCount = Math.max(0, Math.floor(opts.newCount ?? 3));
   const withinDays = opts.newWithinDays ?? 7;
   const today = utcDay(opts.today);
+  if (today === null) throw new Error(`pickRound: today must be YYYY-MM-DD, got ${JSON.stringify(opts.today)}`);
 
   const seen = new Set<string>();
   const active = words.filter((w) => {

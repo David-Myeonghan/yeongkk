@@ -59,4 +59,26 @@ describe("assignVariant", () => {
   ])("골든 1:3: %s + %s 은 변형 %s", (anonId, expId, variant) => {
     expect(assignVariant(anonId, exp(expId, [{ name: "a", weight: 1 }, { name: "b", weight: 3 }]))).toBe(variant);
   });
+
+  it("가중치 1:3 이면 20,000명 중 변형 비율이 25% / 75% ±2%p", () => {
+    const e = exp("ratio", [{ name: "a", weight: 1 }, { name: "b", weight: 3 }]);
+    let a = 0;
+    for (let i = 0; i < 20_000; i++) if (assignVariant("u" + i, e) === "a") a++;
+    expect(a / 20_000).toBeGreaterThanOrEqual(0.23);
+    expect(a / 20_000).toBeLessThanOrEqual(0.27);
+    expect(1 - a / 20_000).toBeGreaterThanOrEqual(0.73);
+    expect(1 - a / 20_000).toBeLessThanOrEqual(0.77);
+  });
+
+  it("같은 사용자가 1:1 에서는 a, 1:3 에서는 b (가중치가 실제로 쓰인다)", () => {
+    const even = exp("w", [{ name: "a", weight: 1 }, { name: "b", weight: 1 }]);
+    const skewed = exp("w", [{ name: "a", weight: 1 }, { name: "b", weight: 3 }]);
+    expect(assignVariant("pin5", even)).toBe("a");
+    expect(assignVariant("pin5", skewed)).toBe("b");
+  });
+
+  it("가중치 0:1 이면 언제나 두 번째", () => {
+    const e = exp("zero-one", [{ name: "a", weight: 0 }, { name: "b", weight: 1 }]);
+    for (let i = 0; i < 1000; i++) expect(assignVariant("u" + i, e)).toBe("b");
+  });
 });

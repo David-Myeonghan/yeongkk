@@ -1,8 +1,8 @@
 name: test
 # PR 의 코드를 돌리는 검사. 권한은 읽기만 — 비밀·쓰기 토큰 없음.
 on:
+  # base 가 main 이 아닌 PR(쌓인 PR)에서도 돈다. 비밀값이 없고 읽기 권한뿐이라 어느 base 든 같다.
   pull_request:
-    branches: [main]
   push:
     branches: [main]
 permissions:
@@ -16,6 +16,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24 }
       - run: npm ci
+      - run: npm run lint
       - run: npm test
       - run: npm run typecheck
   # collect job 은 2부 Task 17 (collect/ 생성) 뒤에 주석을 풀어 켠다.

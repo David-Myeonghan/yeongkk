@@ -18,6 +18,8 @@ new RuleTester({ languageOptions: { parser: tseslint.parser, ecmaVersion: 2022, 
       { code: "switch (msg.payload) { case 1: break; }" },
       { code: "switch (msg.name) { case 'a': break; }" },
       { code: "switch (kinds.length) { case 1: break; }" },
+      { code: "switch (`item-${msg.kind}`) { case 'a': break; }" },
+      { code: "switch (ok && msg.kind) { case 'a': break; }" },
     ],
     invalid: [
       {

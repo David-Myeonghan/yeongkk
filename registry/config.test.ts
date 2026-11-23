@@ -25,8 +25,12 @@ function repo(files: Record<string, string>) {
 }
 
 test("올바른 설정은 문제 없음", () => { expect(checkConfig(cfg(good()))).toEqual([]); });
-test("DEFAULT_CONFIG 도 스키마를 통과한다", () => {
+test("DEFAULT_CONFIG 는 모양이 맞고, 진짜 version 을 넣으면 스키마를 통과한다", () => {
   expect(checkConfig(cfg({ ...DEFAULT_CONFIG, version: 1 }))).toEqual([]);
+});
+test("version 0 인 DEFAULT_CONFIG 그대로는 스키마가 거부한다", () => {
+  expect(DEFAULT_CONFIG.version).toBe(0);
+  expect(checkConfig(cfg(DEFAULT_CONFIG)).length).toBeGreaterThan(0);
 });
 test("실제 config/remote/ko-KR.json 이 통과한다", () => {
   const [c] = loadConfigs(process.cwd()).filter(x => x.fileName === "ko-KR.json");

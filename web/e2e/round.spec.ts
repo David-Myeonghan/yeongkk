@@ -1,6 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { RESULT_COPY } from "../../quiz-core/score";
-import { stubNetwork } from "./support.mjs";
+import { stubNetwork } from "./support";
 
 const TOTAL = 10;
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

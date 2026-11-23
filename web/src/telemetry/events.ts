@@ -49,16 +49,18 @@ export function createTelemetry(deps: TelemetryDeps) {
     send: async (batch: QueuedEvent[]) => {
       const api = deps.getApi();
       const envelope: Envelope = { anonId: deps.anonId(), locale: LOCALE, ...deps.getHost() };
-      if (leaving && deps.beacon) {
-        try {
-          if (deps.beacon(eventsUrl(api), buildBody(envelope, batch))) return true;
-        } catch {
-          // 막히면 보통 보내기로
-        }
-      }
       return sendEvents(deps.fetchFn, api, envelope, batch);
     },
   });
+
+  const beaconIdle = () => {
+    const beacon = deps.beacon;
+    if (!beacon) return;
+    queue.takeIdle((batch) => {
+      const envelope: Envelope = { anonId: deps.anonId(), locale: LOCALE, ...deps.getHost() };
+      return beacon(eventsUrl(deps.getApi()), buildBody(envelope, batch));
+    });
+  };
 
   const cancelTimer = () => {
     if (timer !== null) deps.clearTimer(timer);
@@ -75,6 +77,7 @@ export function createTelemetry(deps: TelemetryDeps) {
       try {
         const clean = sanitizeProps(props);
         queue.push({ name, at: deps.now(), ...(clean ? { props: clean } : {}) });
+        if (leaving) beaconIdle();
         cancelTimer();
         timer = deps.setTimer(() => {
           timer = null;
@@ -85,10 +88,12 @@ export function createTelemetry(deps: TelemetryDeps) {
       }
     },
     flush,
-    /** 화면이 가려지거나 페이지를 떠난다. sendBeacon 이 있으면 그것으로 남은 것을 보낸다. */
+    /** 화면이 가려지거나 페이지를 떠난다. 날아가는 묶음을 뺀 나머지는 sendBeacon 으로 바로 보낸다. */
     leave(): void {
       leaving = true;
-      void flush();
+      cancelTimer();
+      beaconIdle();
+      void queue.flush();
     },
     resume(): void {
       leaving = false;

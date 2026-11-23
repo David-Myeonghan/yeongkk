@@ -39,6 +39,7 @@ export function createQueue(opts: QueueOptions) {
   let events: QueuedEvent[] | null = null;
   let tail: Promise<void> = Promise.resolve();
   let waiting = 0;
+  let inFlight: ReadonlySet<QueuedEvent> = new Set();
 
   const load = (): QueuedEvent[] => {
     if (events) return events;
@@ -67,8 +68,7 @@ export function createQueue(opts: QueueOptions) {
     }
   };
 
-  const nextChunk = (): QueuedEvent[] => {
-    const all = load();
+  const chunkFrom = (all: readonly QueuedEvent[]): QueuedEvent[] => {
     const chunk: QueuedEvent[] = [];
     let bytes = EMPTY_CHUNK;
     for (const e of all) {
@@ -80,6 +80,8 @@ export function createQueue(opts: QueueOptions) {
     }
     return chunk;
   };
+
+  const nextChunk = (): QueuedEvent[] => chunkFrom(load());
 
   const dropOversized = (): boolean => {
     const first = load()[0];
@@ -98,10 +100,13 @@ export function createQueue(opts: QueueOptions) {
         return;
       }
       let ok: boolean;
+      inFlight = new Set(chunk);
       try {
         ok = await send(chunk);
       } catch {
         ok = false;
+      } finally {
+        inFlight = new Set();
       }
       if (!ok) return;
       const sent = new Set(chunk);
@@ -116,6 +121,24 @@ export function createQueue(opts: QueueOptions) {
       all.push(e);
       if (all.length > max) events = all.slice(all.length - max);
       persist();
+    },
+    /** 지금 날아가는 묶음을 뺀 나머지를 동기로 묶음씩 넘긴다. 받은 쪽이 true 면 큐에서 지우고, false 면 멈추고 큐에 남긴다. */
+    takeIdle(handOff: (chunk: QueuedEvent[]) => boolean): void {
+      for (;;) {
+        const idle = load().filter((e) => !inFlight.has(e) && EMPTY_CHUNK + chunkCost(e) <= maxBytes);
+        const chunk = chunkFrom(idle);
+        if (chunk.length === 0) return;
+        let ok: boolean;
+        try {
+          ok = handOff(chunk);
+        } catch {
+          ok = false;
+        }
+        if (!ok) return;
+        const taken = new Set(chunk);
+        events = load().filter((e) => !taken.has(e));
+        persist();
+      }
     },
     flush(): Promise<void> {
       const started = waiting === 0 ? run() : tail.then(run);

@@ -212,22 +212,51 @@ describe("leave (페이지를 떠날 때)", () => {
     expect(fetchFn).toHaveBeenCalledTimes(1);
   });
 
-  it("보내기가 멈춘 채 떠나면, 10초 제한으로 끊긴 뒤 beacon 으로 한 번 보낸다", async () => {
-    const controller = new AbortController();
-    vi.spyOn(AbortSignal, "timeout").mockReturnValue(controller.signal);
-    const beacon = vi.fn<(url: string, body: string) => boolean>(() => true);
-    const fetchFn = vi.fn<typeof fetch>(() => new Promise<Response>(() => {}));
-    const { telemetry } = setup({ beacon, fetchFn });
-    telemetry.track("share_click");
-    const first = telemetry.flush();
-    telemetry.leave();
-    await Promise.resolve();
-    expect(beacon).not.toHaveBeenCalled();
-    controller.abort();
-    await first;
-    await telemetry.flush();
-    expect(fetchFn).toHaveBeenCalledTimes(1);
-    expect(beacon).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(beacon.mock.calls[0]![1]).events[0].name).toBe("share_click");
+  describe("보내기가 날아가는 중에 떠날 때", () => {
+    const hung = () => vi.fn<typeof fetch>(() => new Promise<Response>(() => {}));
+    const names = (body: string): string[] => JSON.parse(body).events.map((e: { name: string }) => e.name);
+
+    it("멈춘 보내기 + 새 이벤트 둘 → 바로 beacon 한 번, 새 둘만 담긴다", () => {
+      const beacon = vi.fn<(url: string, body: string) => boolean>(() => true);
+      const { telemetry } = setup({ beacon, fetchFn: hung() });
+      telemetry.track("share_click");
+      void telemetry.flush();
+      telemetry.track("round_start");
+      telemetry.track("round_complete");
+      telemetry.leave();
+      expect(beacon).toHaveBeenCalledTimes(1);
+      expect(names(beacon.mock.calls[0]![1])).toEqual(["round_start", "round_complete"]);
+    });
+
+    it("beacon 이 false 면 큐에 남고 다음 flush 에서 나간다", async () => {
+      const beacon = vi.fn<(url: string, body: string) => boolean>(() => false);
+      const { telemetry, fetchFn, bodies } = setup({ beacon });
+      telemetry.track("share_click");
+      telemetry.leave();
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+      await telemetry.flush();
+      expect(bodies().flatMap((b) => b.events.map((e: { name: string }) => e.name))).toEqual(["share_click"]);
+    });
+
+    it("날아가는 보내기가 없으면 beacon 한 번에 전부", () => {
+      const beacon = vi.fn<(url: string, body: string) => boolean>(() => true);
+      const { telemetry } = setup({ beacon });
+      telemetry.track("share_click");
+      telemetry.track("round_start");
+      telemetry.leave();
+      expect(beacon).toHaveBeenCalledTimes(1);
+      expect(names(beacon.mock.calls[0]![1])).toEqual(["share_click", "round_start"]);
+    });
+
+    it("leave 를 두 번 불러도 beacon 이 겹치지 않는다", () => {
+      const beacon = vi.fn<(url: string, body: string) => boolean>(() => true);
+      const { telemetry } = setup({ beacon, fetchFn: hung() });
+      telemetry.track("share_click");
+      void telemetry.flush();
+      telemetry.track("round_start");
+      telemetry.leave();
+      telemetry.leave();
+      expect(beacon).toHaveBeenCalledTimes(1);
+    });
   });
 });

@@ -5,3 +5,4 @@
 - `words/<locale>/` 게시 단어 (PR 로만 추가)
 - `registry/` 등록 검사·묶기 (TypeScript)
 - `collect/` 자동 수집 (Python)
+- PR 리뷰는 `npm run review -- <PR 번호>` — 자세한 것은 `tools/review/README.md`

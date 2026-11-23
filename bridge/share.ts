@@ -1,4 +1,7 @@
+import { BridgeError } from "./protocol";
 import type { WebBridge } from "./web";
+
+const NATIVE_SHARE_TIMEOUT_MS = 60_000;
 
 export interface ShareData {
   title?: string;
@@ -20,10 +23,10 @@ const isAbort = (e: unknown): boolean => typeof e === "object" && e !== null && 
 
 export async function share(bridge: WebBridge, data: ShareData, env: ShareEnv): Promise<ShareResult> {
   try {
-    const result = await bridge.call<{ completed?: boolean } | undefined>("share", data);
+    const result = await bridge.call<{ completed?: boolean } | undefined>("share", data, { timeoutMs: NATIVE_SHARE_TIMEOUT_MS });
     return { via: "native", completed: result?.completed ?? true };
-  } catch {
-    // any failure of the app call falls through to the web
+  } catch (e) {
+    if (e instanceof BridgeError && e.code === "TIMEOUT") return { via: "native", completed: false };
   }
 
   if (env.webShare) {

@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { buildPrompt } from "./prompt";
 import { main, parseArgs } from "./run";
 import type { Run } from "./types";
 
@@ -24,12 +25,21 @@ type World = {
   comments?: string;
   reviews: string;
   silentReviewer: boolean;
+  cross: boolean;
+  baseMissing: boolean;
+  prevExists: boolean;
+  prevIsAncestor: boolean;
+  status: string;
+  reviewerDirties: string;
+  inputs: string[];
+  reviewerArgs: string[];
 };
 
 function setup(over: Partial<World> = {}) {
   const w: World = {
     cwd: mkdtempSync(join(tmpdir(), "yk-run-")), calls: [], out: [], err: [], localHead: SHA, author: "alice", viewer: "alice",
-    missing: [], review: REVIEW(), decision: "REQUEST_CHANGES\n", reviews: "", silentReviewer: false, ...over,
+    missing: [], review: REVIEW(), decision: "REQUEST_CHANGES\n", reviews: "", silentReviewer: false, cross: false, baseMissing: false, prevExists: true, prevIsAncestor: true,
+    status: "", reviewerDirties: "", inputs: [], reviewerArgs: [], ...over,
   };
   const run: Run = (cmd, args, options) => {
     const line = [cmd, ...args].join(" ");
@@ -37,19 +47,24 @@ function setup(over: Partial<World> = {}) {
     const ok = (stdout = "") => ({ code: 0, stdout, stderr: "" });
     if (cmd === "which") return w.missing.includes(args[0] ?? "") ? { code: 1, stdout: "", stderr: "" } : ok("/bin/x");
     if (line.startsWith("gh pr view")) {
-      return ok(JSON.stringify({ number: 7, title: "t", body: "b", author: { login: w.author }, baseRefName: "main", headRefName: "f", headRefOid: SHA }));
+      return ok(JSON.stringify({ number: 7, title: "t", body: "b", author: { login: w.author }, baseRefName: "main", headRefName: "f", headRefOid: SHA, isCrossRepository: w.cross }));
     }
     if (line === "git rev-parse HEAD") return ok(`${w.localHead}\n`);
-    if (line.startsWith("git cat-file")) return ok();
+    if (line.startsWith("git rev-parse --verify")) return w.baseMissing ? { code: 128, stdout: "", stderr: "unknown revision" } : ok(`${"7".repeat(40)}\n`);
+    if (line.startsWith("git cat-file")) return w.prevExists ? ok() : { code: 1, stdout: "", stderr: "" };
+    if (line.startsWith("git merge-base --is-ancestor")) return { code: w.prevIsAncestor ? 0 : 1, stdout: "", stderr: "" };
+    if (line === "git status --porcelain") return ok(w.status);
     if (line === "gh api user --jq .login") return ok(`${w.viewer}\n`);
     if (line.includes("pulls/7/reviews") && args.includes("--paginate")) return ok(w.reviews);
     if (line.includes("pulls/7/reviews") && args.includes("POST")) return ok(JSON.stringify({ html_url: "https://example.test/review/1" }));
-    if (cmd === "git" && args[0] === "diff" && args.includes("--numstat")) return ok("1\t0\ta.ts\n");
-    if (cmd === "git" && args[0] === "diff" && args.includes("-U0")) return ok("diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -0,0 +1,5 @@\n+1\n+2\n+3\n+4\n+5\n");
-    if (cmd === "git" && args[0] === "diff") return ok("diff --git a/a.ts b/a.ts\n");
+    if (cmd === "git" && args.includes("diff") && args.includes("--numstat")) return ok("1\t0\ta.ts\n");
+    if (cmd === "git" && args.includes("diff") && args.includes("-U0")) return ok("diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -0,0 +1,5 @@\n+1\n+2\n+3\n+4\n+5\n");
+    if (cmd === "git" && args.includes("diff")) return ok("diff --git a/a.ts b/a.ts\n");
     if (cmd === "npm") return ok("pass");
     if (cmd === "claude") {
-      expect(options?.input ?? "").toContain("yk-review");
+      w.inputs.push(options?.input ?? "");
+      w.reviewerArgs = args;
+      w.status += w.reviewerDirties;
       if (!w.silentReviewer) {
         const outDir = join(w.cwd, "review-out");
         mkdirSync(outDir, { recursive: true });
@@ -70,7 +85,8 @@ const postCalls = (w: World) => w.calls.filter((c) => c.includes("pulls/7/review
 
 describe("parseArgs", () => {
   it("번호와 옵션을 읽는다", () => {
-    expect(parseArgs(["7", "--base", "feat/x", "--incremental", "--submit"])).toEqual({ ok: true, args: { pr: 7, base: "feat/x", incremental: true, submit: true } });
+    expect(parseArgs(["7", "--base", "feat/x", "--incremental", "--submit"])).toEqual({ ok: true, args: { pr: 7, base: "feat/x", incremental: true, submit: true, allowFork: false } });
+    expect(parseArgs(["7", "--allow-fork"])).toEqual({ ok: true, args: { pr: 7, base: undefined, incremental: false, submit: false, allowFork: true } });
   });
   it("번호가 없으면 실패한다", () => {
     expect(parseArgs([]).ok).toBe(false);
@@ -120,15 +136,20 @@ describe("main", () => {
     exec(["7"]);
     const [call] = reviewerCalls(w);
     expect(call).toBe("claude -p --permission-mode acceptEdits --allowedTools Bash,Read,Grep,Glob,Write --output-format stream-json --verbose");
+    const guide = readFileSync(join(import.meta.dirname, "guide.md"), "utf8");
+    const expected = buildPrompt({ guide, prNumber: 7, headSha: SHA, mode: "full" });
+    expect(w.inputs).toEqual([expected]);
+    expect(w.reviewerArgs.join(" ")).not.toContain("yk-review");
+    expect(w.reviewerArgs.join(" ")).not.toContain("판정");
   });
 
   it("base 기본값은 origin/<baseRefName>, --base 가 우선한다", () => {
     const a = setup();
     a.exec(["7"]);
-    expect(a.w.calls.some((c) => c.startsWith("git diff") && c.includes(`origin/main...${SHA}`))).toBe(true);
+    expect(a.w.calls.some((c) => c.startsWith("git") && c.includes(" diff ") && c.includes(`origin/main...${SHA}`))).toBe(true);
     const b = setup();
     b.exec(["7", "--base", "feat/prev"]);
-    expect(b.w.calls.some((c) => c.startsWith("git diff") && c.includes(`feat/prev...${SHA}`))).toBe(true);
+    expect(b.w.calls.some((c) => c.startsWith("git") && c.includes(" diff ") && c.includes(`feat/prev...${SHA}`))).toBe(true);
   });
 
   it("리뷰어 출력이 틀리면 0 이 아니게 끝나고 검증 메시지를 보인다", () => {
@@ -163,16 +184,63 @@ describe("main", () => {
     expect(payload.event).toBe("REQUEST_CHANGES");
   });
 
-  it("이전 실행의 출력 파일이 남아 있어도 새 실행에서는 지운다", () => {
-    const { w, exec } = setup({ review: "" });
+  it("이전 실행의 출력 파일은 지워지므로 검증되지 않는다", () => {
+    const { w, exec } = setup({ silentReviewer: true });
     mkdirSync(join(w.cwd, "review-out"), { recursive: true });
-    writeFileSync(join(w.cwd, "review-out", "stale.txt"), "x");
-    exec(["7"]);
-    expect(existsSync(join(w.cwd, "review-out", "stale.txt"))).toBe(false);
+    writeFileSync(join(w.cwd, "review-out", "review.md"), REVIEW("0".repeat(40)));
+    writeFileSync(join(w.cwd, "review-out", "decision.txt"), "REQUEST_CHANGES\n");
+    expect(exec(["7"])).not.toBe(0);
+    expect(existsSync(join(w.cwd, "review-out", "review.md"))).toBe(false);
+    expect(w.err.join("\n")).toContain("review.md");
+  });
+
+  it("base ref 를 풀 수 없으면 검사를 돌리기 전에 멈춘다", () => {
+    const { w, exec } = setup({ baseMissing: true });
+    expect(exec(["7"])).not.toBe(0);
+    expect(w.err.join("\n")).toContain("--base");
+    expect(w.calls.some((c) => c.startsWith("npm"))).toBe(false);
+    expect(reviewerCalls(w)).toEqual([]);
+  });
+
+  it("pr.md 에 실제로 쓴 비교 기준이 적힌다", () => {
+    const { w, exec } = setup();
+    exec(["7", "--base", "feat/prev"]);
+    expect(readFileSync(join(w.cwd, "review-context", "pr.md"), "utf8")).toContain(`비교 기준: feat/prev (${"7".repeat(40)})`);
+  });
+});
+
+describe("포크 PR", () => {
+  it("기본은 아무것도 돌리기 전에 거절한다", () => {
+    const { w, exec } = setup({ cross: true });
+    expect(exec(["7"])).not.toBe(0);
+    expect(w.err.join("\n")).toContain("--allow-fork");
+    expect(w.calls.some((c) => c.startsWith("npm") || c.startsWith("claude") || c.startsWith("git"))).toBe(false);
+  });
+
+  it("--allow-fork 를 주면 이어 간다", () => {
+    const { w, exec } = setup({ cross: true });
+    expect(exec(["7", "--allow-fork"])).toBe(0);
+    expect(reviewerCalls(w)).toHaveLength(1);
+  });
+});
+
+describe("리뷰어가 작업 트리를 건드렸는가", () => {
+  it("리뷰 전후의 git status 가 같으면 통과한다", () => {
+    const { exec } = setup({ status: " M a.ts\n" });
+    expect(exec(["7"])).toBe(0);
+  });
+
+  it("바뀌었으면 경로를 알리고 게시하지 않고 0 이 아니게 끝난다", () => {
+    const { w, exec } = setup({ reviewerDirties: "?? tools/evil.ts\n" });
+    expect(exec(["7", "--submit"])).not.toBe(0);
+    expect(w.err.join("\n")).toContain("tools/evil.ts");
+    expect(postCalls(w)).toEqual([]);
   });
 });
 
 describe("--incremental", () => {
+  const row = (user: string, sha: string, url: string) => JSON.stringify({ user, body: `${marker(sha, "full")}\n**판정: REQUEST_CHANGES**`, html_url: url });
+
   it("지난 리뷰가 없으면 말하고 0 이 아니게 끝난다", () => {
     const { w, exec } = setup();
     expect(exec(["7", "--incremental"])).not.toBe(0);
@@ -181,9 +249,37 @@ describe("--incremental", () => {
   });
 
   it("지난 리뷰가 있으면 previous-review.md 를 쓰고 증분으로 돈다", () => {
-    const row = JSON.stringify({ user: "alice", body: `${marker(PREV, "full")}\n**판정: REQUEST_CHANGES**`, html_url: "u" });
-    const { w, exec } = setup({ reviews: row, review: REVIEW(SHA, "incremental"), decision: "REQUEST_CHANGES" });
+    const { w, exec } = setup({ reviews: row("alice", PREV, "u"), review: REVIEW(SHA, "incremental") });
     expect(exec(["7", "--incremental"])).toBe(0);
     expect(readFileSync(join(w.cwd, "review-context", "previous-review.md"), "utf8")).toContain(marker(PREV, "full"));
+    expect(w.calls.some((c) => c.includes(`merge-base --is-ancestor ${PREV} ${SHA}`))).toBe(true);
+  });
+
+  it("내 리뷰가 여럿이면 가장 마지막 것이 이기고 남의 리뷰는 무시한다", () => {
+    const older = "1".repeat(40);
+    const newest = "2".repeat(40);
+    const reviews = [row("alice", older, "u1"), row("alice", newest, "u2"), row("mallory", "3".repeat(40), "u3")].join("\n");
+    const { w, exec } = setup({ reviews, review: REVIEW(SHA, "incremental") });
+    expect(exec(["7", "--incremental"])).toBe(0);
+    const prev = readFileSync(join(w.cwd, "review-context", "previous-review.md"), "utf8");
+    expect(prev).toContain(newest);
+    expect(prev).not.toContain(older);
+    expect(w.calls.some((c) => c.includes(`--is-ancestor ${newest} ${SHA}`))).toBe(true);
+  });
+
+  it("지난 head 가 head 의 조상이 아니면 브랜치가 다시 쓰였다고 알리고 리뷰어를 띄우지 않는다", () => {
+    const { w, exec } = setup({ reviews: row("alice", PREV, "u"), prevIsAncestor: false });
+    expect(exec(["7", "--incremental"])).not.toBe(0);
+    expect(w.err.join("\n")).toContain("다시 쓰였");
+    expect(w.err.join("\n")).toContain("--incremental 없이");
+    expect(w.calls.some((c) => c.startsWith("npm"))).toBe(false);
+    expect(reviewerCalls(w)).toEqual([]);
+  });
+
+  it("지난 head 객체가 로컬에 없어도 같은 안내를 한다", () => {
+    const { w, exec } = setup({ reviews: row("alice", PREV, "u"), prevExists: false });
+    expect(exec(["7", "--incremental"])).not.toBe(0);
+    expect(w.err.join("\n")).toContain("다시 쓰였");
+    expect(reviewerCalls(w)).toEqual([]);
   });
 });

@@ -19,7 +19,9 @@ const EXCLUDE_LOCK = ":(exclude,glob)**/package-lock.json";
 export type FileStat = { path: string; added: number; deleted: number };
 export type Result = { ok: true } | { ok: false; error: string };
 
-export function renderPr(meta: PrMeta, base: string): string {
+export type BaseRef = { ref: string; sha: string };
+
+export function renderPr(meta: PrMeta, base: BaseRef): string {
   return [
     `# ${meta.title}`,
     "",
@@ -27,7 +29,7 @@ export function renderPr(meta: PrMeta, base: string): string {
     "",
     `- PR: #${meta.number}`,
     `- 작성자: ${meta.authorLogin}`,
-    `- base: ${base}`,
+    `- 비교 기준: ${base.ref} (${base.sha})`,
     `- head: ${meta.headRefName}`,
     `- head sha: ${meta.headSha}`,
     "",
@@ -50,11 +52,7 @@ export function renderChangedFiles(stats: FileStat[]): string {
 }
 
 export function diffArgs(base: string, headSha: string, extra: string[] = []): string[] {
-  return ["diff", ...extra, `${base}...${headSha}`, "--", ".", EXCLUDE_LOCK];
-}
-
-export function newCommitsRange(previousHeadSha: string, headSha: string): { from: string; to: string } {
-  return { from: previousHeadSha, to: headSha };
+  return ["-c", "core.quotePath=false", "diff", "--no-color", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/", ...extra, `${base}...${headSha}`, "--", ".", EXCLUDE_LOCK];
 }
 
 type ReviewRow = { user: string; body: string; url: string };
@@ -96,7 +94,7 @@ export function parsePrMeta(json: string): MetaResult {
   const r: Record<string, unknown> = { ...raw };
   const author = r.author;
   const login = typeof author === "object" && author !== null && "login" in author ? author.login : undefined;
-  const { number, title, body, baseRefName, headRefName, headRefOid } = r;
+  const { number, title, body, baseRefName, headRefName, headRefOid, isCrossRepository } = r;
   if (typeof number !== "number") return { ok: false, error: "gh pr view 응답에 number 가 없다." };
   if (typeof title !== "string") return { ok: false, error: "gh pr view 응답에 title 이 없다." };
   if (typeof body !== "string") return { ok: false, error: "gh pr view 응답에 body 가 없다." };
@@ -104,7 +102,8 @@ export function parsePrMeta(json: string): MetaResult {
   if (typeof baseRefName !== "string") return { ok: false, error: "gh pr view 응답에 baseRefName 이 없다." };
   if (typeof headRefName !== "string") return { ok: false, error: "gh pr view 응답에 headRefName 이 없다." };
   if (typeof headRefOid !== "string" || !/^[0-9a-f]{40}$/.test(headRefOid)) return { ok: false, error: "gh pr view 응답의 headRefOid 가 40자 커밋이 아니다." };
-  return { ok: true, meta: { number, title, body, authorLogin: login, baseRefName, headRefName, headSha: headRefOid } };
+  if (typeof isCrossRepository !== "boolean") return { ok: false, error: "gh pr view 응답에 isCrossRepository 가 없다." };
+  return { ok: true, meta: { number, title, body, authorLogin: login, baseRefName, headRefName, headSha: headRefOid, isCrossRepository } };
 }
 
 type BuildInput = {
@@ -113,13 +112,14 @@ type BuildInput = {
   docsDir: string;
   meta: PrMeta;
   base: string;
+  baseSha: string;
   mode: ReviewMode;
   previous?: PreviousReview;
   diagnostics: string;
 };
 
 export function buildContext(input: BuildInput): Result {
-  const { run, dir, docsDir, meta, base, mode, previous, diagnostics } = input;
+  const { run, dir, docsDir, meta, base, baseSha, mode, previous, diagnostics } = input;
   if (mode === "incremental" && previous === undefined) {
     return { ok: false, error: "증분 리뷰인데 지난 리뷰(yk-review 표지가 있는 내 리뷰)를 찾지 못했다." };
   }
@@ -130,7 +130,7 @@ export function buildContext(input: BuildInput): Result {
 
   const out = join(dir, CONTEXT_DIR);
   mkdirSync(out, { recursive: true });
-  writeFileSync(join(out, CONTEXT_FILES.pr), renderPr(meta, base));
+  writeFileSync(join(out, CONTEXT_FILES.pr), renderPr(meta, { ref: base, sha: baseSha }));
   writeFileSync(join(out, CONTEXT_FILES.diff), patch.stdout);
   writeFileSync(join(out, CONTEXT_FILES.changedFiles), renderChangedFiles(parseNumstat(numstat.stdout)));
   writeFileSync(join(out, CONTEXT_FILES.diagnostics), diagnostics);

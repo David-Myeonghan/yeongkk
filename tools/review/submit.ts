@@ -21,7 +21,7 @@ type PayloadInput = {
 
 function withNote(body: string): string {
   const [marker = "", ...rest] = body.split("\n");
-  return [marker, OWN_PR_NOTE, ...rest].join("\n");
+  return [marker, OWN_PR_NOTE, "", ...rest].join("\n");
 }
 
 export function buildReviewPayload(input: PayloadInput): ReviewPayload {

@@ -39,6 +39,16 @@ npm run review -- 13 --base feat/previous-pr
 내가 올린 가장 최근의 리뷰(첫 줄에 `yk-review` 표지가 있는 것)를 찾아 `previous-review.md` 로 주고, 그 리뷰의 head 이후 새 커밋만 보게 한다.
 지난 리뷰가 없으면 이유를 말하고 0 이 아닌 값으로 끝난다.
 
+## 주의: 믿을 수 있는 PR 에만
+
+검사 단계에서 PR 의 코드가 이 컴퓨터에서 실행된다(`npm run lint` · `npm test` 등).
+리뷰어 세션은 셸 명령을 실행할 수 있고, 내 `gh` · `claude` 로그인을 쓴다.
+PR 의 글과 코드에 숨은 지시가 있을 수 있으니, 작성자를 믿을 수 있는 PR 에만 쓴다.
+
+- 포크에서 온 PR 은 기본으로 거절한다. 알고 쓰려면 `--allow-fork` 를 붙인다.
+- 리뷰어가 `review-context/` · `review-out/` 밖의 파일을 바꾸거나 만들었으면 검사가 막고, 게시하지 않는다.
+- 지난 리뷰 뒤로 브랜치가 다시 쓰였으면(`--incremental`) 멈추고 전체 리뷰를 권한다.
+
 ## 필요한 것
 
 - `claude`, `gh`, `git` 이 PATH 에 있어야 한다.

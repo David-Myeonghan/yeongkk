@@ -29,7 +29,8 @@ describe("buildReviewPayload", () => {
     const lines = p.body.split("\n");
     expect(lines[0]).toBe(`<!-- yk-review head_sha=${SHA} mode=full -->`);
     expect(lines[1]).toBe(OWN_PR_NOTE);
-    expect(lines[2]).toBe("**판정: REQUEST_CHANGES**");
+    expect(lines[2]).toBe("");
+    expect(lines[3]).toBe("**판정: REQUEST_CHANGES**");
   });
 
   it("코멘트는 side RIGHT 로 옮긴다", () => {

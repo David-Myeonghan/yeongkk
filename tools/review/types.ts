@@ -14,6 +14,7 @@ export type PrMeta = {
   baseRefName: string;
   headRefName: string;
   headSha: string;
+  isCrossRepository: boolean;
 };
 
 export type ReviewComment = { path: string; line: number; body: string };

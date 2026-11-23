@@ -3,13 +3,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  CONTEXT_DIR, CONTEXT_FILES, buildContext, newCommitsRange, parseNumstat, parsePrMeta, parseReviews,
+  CONTEXT_DIR, CONTEXT_FILES, buildContext, diffArgs, parseNumstat, parsePrMeta, parseReviews,
   pickPreviousReview, renderChangedFiles, renderPr,
 } from "./context";
 import type { PrMeta, Run } from "./types";
 
 const SHA = "1".repeat(40);
-const meta: PrMeta = { number: 5, title: "제목", body: "본문", authorLogin: "alice", baseRefName: "main", headRefName: "feat", headSha: SHA };
+const meta: PrMeta = { number: 5, title: "제목", body: "본문", authorLogin: "alice", baseRefName: "main", headRefName: "feat", headSha: SHA, isCrossRepository: false };
+const BASE_SHA = "7".repeat(40);
 
 const fakeRun = (calls: string[][] = []): Run => (cmd, args) => {
   calls.push([cmd, ...args]);
@@ -19,8 +20,23 @@ const fakeRun = (calls: string[][] = []): Run => (cmd, args) => {
 
 describe("renderPr", () => {
   it("제목 · 번호 · 작성자 · base · head sha · 본문을 담는다", () => {
-    const md = renderPr(meta, "origin/main");
-    for (const s of ["제목", "#5", "alice", "origin/main", SHA, "본문"]) expect(md).toContain(s);
+    const md = renderPr(meta, { ref: "origin/main", sha: BASE_SHA });
+    for (const s of ["제목", "#5", "alice", SHA, "본문"]) expect(md).toContain(s);
+  });
+});
+
+describe("pr.md 의 비교 기준", () => {
+  it("실제로 쓴 base 의 이름과 sha 를 적는다", () => {
+    expect(renderPr(meta, { ref: "feat/prev", sha: BASE_SHA })).toContain(`비교 기준: feat/prev (${BASE_SHA})`);
+  });
+});
+
+describe("diffArgs", () => {
+  it("경로를 그대로 읽도록 하는 옵션을 모두 건다", () => {
+    const args = diffArgs("origin/main", SHA, ["-U0"]);
+    expect(args.slice(0, 2)).toEqual(["-c", "core.quotePath=false"]);
+    for (const flag of ["diff", "--no-color", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/", "-U0"]) expect(args).toContain(flag);
+    expect(args).toContain(`origin/main...${SHA}`);
   });
 });
 
@@ -40,7 +56,7 @@ describe("numstat", () => {
 describe("buildContext", () => {
   it("자료 파일을 모두 만들고 지침 두 개를 복사한다", () => {
     const dir = mkdtempSync(join(tmpdir(), "yk-ctx-"));
-    const result = buildContext({ run: fakeRun(), dir, meta, base: "origin/main", mode: "full", diagnostics: "# 진단\n", docsDir: import.meta.dirname });
+    const result = buildContext({ run: fakeRun(), dir, meta, base: "origin/main", baseSha: BASE_SHA, mode: "full", diagnostics: "# 진단\n", docsDir: import.meta.dirname });
     expect(result).toEqual({ ok: true });
     const out = join(dir, CONTEXT_DIR);
     for (const name of [CONTEXT_FILES.pr, CONTEXT_FILES.diff, CONTEXT_FILES.changedFiles, CONTEXT_FILES.diagnostics, CONTEXT_FILES.adversarial, CONTEXT_FILES.outputRules]) {
@@ -54,8 +70,8 @@ describe("buildContext", () => {
   it("package-lock.json 을 patch 에서 뺀다", () => {
     const dir = mkdtempSync(join(tmpdir(), "yk-ctx-"));
     const calls: string[][] = [];
-    buildContext({ run: fakeRun(calls), dir, meta, base: "origin/main", mode: "full", diagnostics: "", docsDir: import.meta.dirname });
-    const diffCalls = calls.filter((c) => c[1] === "diff");
+    buildContext({ run: fakeRun(calls), dir, meta, base: "origin/main", baseSha: BASE_SHA, mode: "full", diagnostics: "", docsDir: import.meta.dirname });
+    const diffCalls = calls.filter((c) => c.includes("diff"));
     expect(diffCalls.length).toBeGreaterThanOrEqual(2);
     for (const c of diffCalls) {
       expect(c).toContain(`origin/main...${SHA}`);
@@ -65,7 +81,7 @@ describe("buildContext", () => {
 
   it("증분 모드에 지난 리뷰가 없으면 이유를 돌려준다", () => {
     const dir = mkdtempSync(join(tmpdir(), "yk-ctx-"));
-    const result = buildContext({ run: fakeRun(), dir, meta, base: "origin/main", mode: "incremental", diagnostics: "", docsDir: import.meta.dirname });
+    const result = buildContext({ run: fakeRun(), dir, meta, base: "origin/main", baseSha: BASE_SHA, mode: "incremental", diagnostics: "", docsDir: import.meta.dirname });
     expect(result.ok).toBe(false);
     expect(result.ok ? "" : result.error).toContain("지난 리뷰");
   });
@@ -73,7 +89,7 @@ describe("buildContext", () => {
   it("증분 모드에 지난 리뷰가 있으면 previous-review.md 를 쓴다", () => {
     const dir = mkdtempSync(join(tmpdir(), "yk-ctx-"));
     const previous = { body: "지난 본문", headSha: "2".repeat(40), url: "u" };
-    const result = buildContext({ run: fakeRun(), dir, meta, base: "origin/main", mode: "incremental", previous, diagnostics: "", docsDir: import.meta.dirname });
+    const result = buildContext({ run: fakeRun(), dir, meta, base: "origin/main", baseSha: BASE_SHA, mode: "incremental", previous, diagnostics: "", docsDir: import.meta.dirname });
     expect(result).toEqual({ ok: true });
     expect(readFileSync(join(dir, CONTEXT_DIR, CONTEXT_FILES.previousReview), "utf8")).toBe("지난 본문");
   });
@@ -81,7 +97,7 @@ describe("buildContext", () => {
   it("git diff 가 실패하면 이유를 돌려준다", () => {
     const dir = mkdtempSync(join(tmpdir(), "yk-ctx-"));
     const run: Run = () => ({ code: 128, stdout: "", stderr: "bad revision" });
-    const result = buildContext({ run, dir, meta, base: "origin/nope", mode: "full", diagnostics: "", docsDir: import.meta.dirname });
+    const result = buildContext({ run, dir, meta, base: "origin/nope", baseSha: BASE_SHA, mode: "full", diagnostics: "", docsDir: import.meta.dirname });
     expect(result.ok).toBe(false);
     expect(result.ok ? "" : result.error).toContain("bad revision");
   });
@@ -105,15 +121,17 @@ describe("증분 보조", () => {
     expect(pickPreviousReview(parseReviews(ndjson), "nobody")).toBeUndefined();
   });
 
-  it("새 커밋 범위는 지난 sha 와 지금 sha 다", () => {
-    expect(newCommitsRange("a".repeat(40), SHA)).toEqual({ from: "a".repeat(40), to: SHA });
-  });
 });
 
 describe("parsePrMeta", () => {
   it("gh pr view 의 JSON 을 읽는다", () => {
-    const json = JSON.stringify({ number: 5, title: "t", body: "b", author: { login: "alice" }, baseRefName: "main", headRefName: "f", headRefOid: SHA });
-    expect(parsePrMeta(json)).toEqual({ ok: true, meta: { number: 5, title: "t", body: "b", authorLogin: "alice", baseRefName: "main", headRefName: "f", headSha: SHA } });
+    const json = JSON.stringify({ number: 5, title: "t", body: "b", author: { login: "alice" }, baseRefName: "main", headRefName: "f", headRefOid: SHA, isCrossRepository: true });
+    expect(parsePrMeta(json)).toEqual({ ok: true, meta: { number: 5, title: "t", body: "b", authorLogin: "alice", baseRefName: "main", headRefName: "f", headSha: SHA, isCrossRepository: true } });
+  });
+
+  it("isCrossRepository 가 불리언이 아니면 실패한다", () => {
+    const json = JSON.stringify({ number: 5, title: "t", body: "b", author: { login: "a" }, baseRefName: "main", headRefName: "f", headRefOid: SHA });
+    expect(parsePrMeta(json).ok).toBe(false);
   });
 
   it("필드가 빠졌으면 어느 것인지 말한다", () => {

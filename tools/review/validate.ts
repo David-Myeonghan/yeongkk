@@ -12,7 +12,7 @@ export const OUT_FILES = {
 export const BODY_CAP = 8000;
 
 const MARKER = /^<!-- yk-review head_sha=([0-9a-f]{40}) mode=(full|incremental) -->$/;
-const VERDICT = /^\*\*판정: (APPROVE|REQUEST_CHANGES)\*\*\s*$/m;
+const VERDICT = /^\*\*판정: (APPROVE|REQUEST_CHANGES)\*\*\s*$/gm;
 
 export type ReviewOutput = {
   expected: { headSha: string; mode: ReviewMode };
@@ -29,6 +29,7 @@ export function parseDecision(raw: string): Decision | undefined {
 
 function checkMarker(body: string, expected: ReviewOutput["expected"]): string[] {
   const [first = ""] = body.split("\n");
+  if (first.startsWith("\uFEFF")) return ["본문 첫 글자가 BOM(U+FEFF)이다. BOM 을 없애고 첫 줄을 표지로 시작해야 한다."];
   const found = MARKER.exec(first.trimEnd());
   if (found === null) {
     return [`본문 첫 줄이 표지가 아니다. 첫 줄은 정확히 \`<!-- yk-review head_sha=<40자 커밋> mode=<full|incremental> -->\` 여야 한다. 지금 첫 줄: ${first.slice(0, 80)}`];
@@ -44,9 +45,11 @@ function checkDecision(body: string, decisionFile: string): string[] {
   if (decision === undefined) {
     return [`${OUT_FILES.decision} 는 APPROVE 또는 REQUEST_CHANGES 한 줄이어야 한다. 지금 내용: ${decisionFile.trim().slice(0, 40) || "(비어 있음)"}`];
   }
-  const verdict = VERDICT.exec(body);
-  if (verdict === null) return ["본문에 `**판정: APPROVE**` 또는 `**판정: REQUEST_CHANGES**` 판정 줄이 없다."];
-  if (verdict[1] !== decision) return [`본문의 판정(${verdict[1]})과 ${OUT_FILES.decision}(${decision})이 다르다. 둘을 맞춰야 한다.`];
+  const verdicts = [...body.matchAll(VERDICT)].map((m) => m[1]);
+  const [only] = verdicts;
+  if (only === undefined) return ["본문에 `**판정: APPROVE**` 또는 `**판정: REQUEST_CHANGES**` 판정 줄이 없다."];
+  if (verdicts.length > 1) return [`본문에 판정 줄이 ${verdicts.length}개다. 정확히 한 개여야 한다.`];
+  if (only !== decision) return [`본문의 판정(${only})과 ${OUT_FILES.decision}(${decision})이 다르다. 둘을 맞춰야 한다.`];
   return [];
 }
 
@@ -103,4 +106,11 @@ export function parseComments(raw: string): Array<{ path: string; line: number; 
       ? [{ path: item.path, line: item.line, body: item.body }]
       : [],
   );
+}
+
+export function changedPaths(before: string, after: string): string[] {
+  const lines = (text: string) => text.split("\n").filter((line) => line !== "");
+  const was = new Set(lines(before));
+  const is = new Set(lines(after));
+  return [...lines(after).filter((l) => !was.has(l)), ...lines(before).filter((l) => !is.has(l))];
 }

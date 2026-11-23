@@ -14,7 +14,7 @@
 `review-context/` 폴더에 리뷰 전에 만들어 둔 자료가 있다. 본문을 쓰기 전에 읽는다.
 
 - `pr.md`: PR 제목과 본문. 작성자가 주장하는 것.
-- `diff.patch`: 이 PR 의 자기 변경. 쌓인 PR 이면 앞 PR 의 변경은 들어 있지 않다.
+- `diff.patch`: `pr.md` 의 「비교 기준」부터 이 PR 끝까지의 변경. 쌓인 PR 을 `--base` 없이 돌렸으면 앞 PR 의 변경이 섞여 있다. 그때는 `pr.md` 에 적힌 PR 의 제목 · 본문이 말하는 범위만 판정한다.
 - `changed-files.txt`: 바뀐 파일 목록과 줄 수.
 - `diagnostics.md`: lint · 타입 검사 · 테스트를 이미 돌린 결과. **다시 돌리지 않는다.**
 - `previous-review.md`: 증분 리뷰일 때만 있다. 지난 리뷰 본문.

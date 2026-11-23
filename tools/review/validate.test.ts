@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BODY_CAP, validateReview, type ReviewOutput } from "./validate";
+import { BODY_CAP, changedPaths, validateReview, type ReviewOutput } from "./validate";
 
 const SHA = "a".repeat(40);
 const marker = (sha = SHA, mode = "full") => `<!-- yk-review head_sha=${sha} mode=${mode} -->`;
@@ -62,6 +62,26 @@ describe("validateReview", () => {
     expect(errors[0]).toContain("판정");
   });
 
+  it("판정 줄이 둘이면 서로 달라도 같아도 막는다", () => {
+    const differing = `${marker()}\n**판정: APPROVE**\n본문\n**판정: REQUEST_CHANGES**\n`;
+    const agreeing = `${marker()}\n**판정: APPROVE**\n본문\n**판정: APPROVE**\n`;
+    for (const b of [differing, agreeing]) {
+      const errors = validateReview({ ...good(), body: b });
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain("2개");
+    }
+  });
+
+  it("CRLF 본문도 통과한다", () => {
+    expect(validateReview({ ...good(), body: body().replace(/\n/g, "\r\n") })).toEqual([]);
+  });
+
+  it("표지 앞의 BOM 은 막고 이유를 말한다", () => {
+    const errors = validateReview({ ...good(), body: `\uFEFF${body()}` });
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain("BOM");
+  });
+
   it("판정 줄이 없으면 막는다", () => {
     const errors = validateReview({ ...good(), body: `${marker()}\n내용만 있다\n` });
     expect(errors.join("\n")).toContain("판정 줄");
@@ -106,5 +126,17 @@ describe("validateReview", () => {
     const errors = validateReview({ ...good(), comments });
     expect(errors.length).toBeGreaterThan(0);
     expect(errors[0]).toContain("comments.json");
+  });
+});
+
+describe("changedPaths", () => {
+  it("전과 후의 git status 가 같으면 비어 있다", () => {
+    expect(changedPaths(" M a.ts\n", " M a.ts\n")).toEqual([]);
+  });
+  it("새로 생기거나 바뀐 줄만 돌려준다", () => {
+    expect(changedPaths(" M a.ts\n", " M a.ts\n?? b.ts\nM  c.ts\n")).toEqual(["?? b.ts", "M  c.ts"]);
+  });
+  it("전에 있던 것이 사라져도 알린다", () => {
+    expect(changedPaths(" M a.ts\n", "")).toEqual([" M a.ts"]);
   });
 });

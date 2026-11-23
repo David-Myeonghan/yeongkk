@@ -30,6 +30,23 @@ describe("parseAddedLines", () => {
     expect(map.has("old.ts")).toBe(false);
   });
 
+  it("공백이 든 경로는 끝 탭을 떼고 읽는다", () => {
+    const map = parseAddedLines("diff --git a/sp ace.ts b/sp ace.ts\n--- a/sp ace.ts\t\n+++ b/sp ace.ts\t\n@@ -0,0 +1 @@\n+x\n");
+    expect([...map.keys()]).toEqual(["sp ace.ts"]);
+    expect([...(map.get("sp ace.ts") ?? [])]).toEqual([1]);
+  });
+
+  it("한글 파일 이름을 그대로 읽는다", () => {
+    const map = parseAddedLines(header("words/한글 단어.ts") + "@@ -0,0 +3,2 @@\n+a\n+b\n");
+    expect([...(map.get("words/한글 단어.ts") ?? [])]).toEqual([3, 4]);
+  });
+
+  it("내용이 '++ ' 로 시작하는 추가 줄을 파일 머리로 오해하지 않는다", () => {
+    const map = parseAddedLines(header("a.ts") + "@@ -0,0 +1 @@\n+++ evil\n@@ -5 +6 @@\n-x\n+y\n");
+    expect([...map.keys()]).toEqual(["a.ts"]);
+    expect([...(map.get("a.ts") ?? [])]).toEqual([1, 6]);
+  });
+
   it("지운 파일(/dev/null)은 건너뛴다", () => {
     const diff = "diff --git a/gone.ts b/gone.ts\ndeleted file mode 100644\n--- a/gone.ts\n+++ /dev/null\n@@ -1,2 +0,0 @@\n-a\n-b\n";
     expect(parseAddedLines(diff).size).toBe(0);

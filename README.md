@@ -37,7 +37,7 @@ npx wrangler d1 migrations apply yeongkk --local
 npx wrangler dev --port 8787
 ```
 
-브라우저에서 `http://localhost:8787`을 열면 퀴즈가 뜬다. `cp`가 필요한 것은 웹이 같은 주소에서 `/words.ko-KR.json`과 `/config.ko-KR.json`을 받기 때문이다(`web/src/data/loadWords.ts`).
+브라우저에서 `http://localhost:8787`을 열면 홈 화면이 뜬다. 게시 단어가 0개인 지금은 「아직 단어가 없어요. 곧 채울게요.」 안내가 보인다. 단어 파일을 `words/ko-KR/`에 넣고 `npm run build`부터 다시 하면 퀴즈를 풀 수 있다. `cp`가 필요한 것은 웹이 같은 주소에서 `/words.ko-KR.json`과 `/config.ko-KR.json`을 받기 때문이다(`web/src/data/loadWords.ts`).
 
 ## 테스트
 

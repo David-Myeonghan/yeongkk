@@ -73,6 +73,7 @@
 - 빈 단어 목록, 틀린 모양은 구별한다. 깨진 단어 하나는 버리고 나머지를 쓴다. `web/src/data/loadWords.test.ts`
 - 5번째 문제에서 새로 고침해도 이어 풀기로 같은 문제 · 같은 보기를 만난다. `web/e2e/round.spec.ts`
 - 저장한 지 6시간이 지난 판, 시작 시각이 5분보다 더 미래인 판, 모양이 틀린 저장값은 이어 풀지 않는다. 저장소가 막혀도 던지지 않는다. `web/src/state/progress.test.ts`, `web/src/state/storage.test.ts`
+- 판 도중 6시간이 지나면 홈으로 보내고 시간이 지났다고 알린다. `web/e2e/round.spec.ts`
 - 시작을 두 번 눌러도 이동은 한 번이다. 테스트 없음
 
 ### 문제

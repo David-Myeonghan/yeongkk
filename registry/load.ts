@@ -2,7 +2,9 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { LoadedWord } from "./types";
 
-const dirs = (p: string) => existsSync(p) ? readdirSync(p, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name) : [];
+export const LOCALE_DIR = /^[a-z]{2}-[A-Z]{2}$/;
+
+export const dirs = (p: string) => existsSync(p) ? readdirSync(p, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name) : [];
 
 export function loadWords(root: string): LoadedWord[] {
   const out: LoadedWord[] = [];

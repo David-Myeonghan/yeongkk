@@ -4,5 +4,5 @@
     "strict": true, "esModuleInterop": true, "resolveJsonModule": true,
     "skipLibCheck": true, "noEmit": true, "types": ["node"]
   },
-  "include": ["registry"]
+  "include": ["registry", "bridge", "quiz-core", "tools", "eslint.config.ts", "vitest.config.ts"]
 }

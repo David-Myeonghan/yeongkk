@@ -7,16 +7,28 @@
     "typecheck": "tsc --noEmit",
     "check": "tsx registry/cli-check.ts",
     "build": "tsx registry/cli-build.ts",
-    "add-word": "GH_TOKEN=$(gh auth token --user David-Myeonghan) tsx registry/add-word.ts"
+    "add-word": "GH_TOKEN=$(gh auth token --user David-Myeonghan) tsx registry/add-word.ts",
+    "lint": "eslint .",
+    "review": "tsx tools/review/run.ts"
   },
+  "workspaces": [
+    "web",
+    "api",
+    "app"
+  ],
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^26.6.6",
+    "eslint": "^10.15.0",
+    "jiti": "^2.7.0",
     "tsx": "^4.23.15",
-    "typescript": "^7.0.2",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.73.0",
     "vitest": "^5.1.1"
   },
   "dependencies": {
     "ajv": "^8.20.0",
-    "ajv-formats": "^3.0.1"
+    "ajv-formats": "^3.0.1",
+    "ts-pattern": "^5.9.2"
   }
 }

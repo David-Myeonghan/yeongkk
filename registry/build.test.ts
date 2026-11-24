@@ -12,3 +12,7 @@ test("active 만, id 순, 공개 칸만", () => {
   expect(out.words.map(w => w.id)).toEqual(["a", "b"]);
   expect(Object.keys(out.words[0])).not.toContain("sources");
 });
+test("공개 칸에 addedAt 이 들어간다", () => {
+  const out = buildLocale([sampleWord({ addedAt: "2026-12-05" })], "ko-KR");
+  expect(out.words[0].addedAt).toBe("2026-12-05");
+});

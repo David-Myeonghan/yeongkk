@@ -1,6 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { RESULT_COPY } from "../../quiz-core/score";
-import { stubNetwork } from "./support";
+import { stubNetwork, type StubNetworkOptions } from "./support";
 
 const TOTAL = 10;
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -16,7 +16,7 @@ const guardNetwork = (page: Page) => {
   return outside;
 };
 
-async function open(context: BrowserContext, page: Page, options: Parameters<typeof stubNetwork>[1] = {}) {
+async function open(context: BrowserContext, page: Page, options: StubNetworkOptions = {}) {
   const outside = guardNetwork(page);
   const net = await stubNetwork(context, options);
   await page.goto("/");

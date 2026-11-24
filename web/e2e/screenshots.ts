@@ -2,7 +2,7 @@
 // 사용: npm run build -w web && npm run screens -w web
 import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { chromium, type Browser, type Page } from "@playwright/test";
+import { chromium, type Browser, type Page, type ViewportSize } from "@playwright/test";
 import type { Progress } from "../src/state/progress";
 import { startPreview, stubNetwork, words } from "./support";
 
@@ -15,7 +15,6 @@ const SETTLE_MS = 700;
 
 const apiCalls: string[] = [];
 type ColorScheme = "light" | "dark";
-type Viewport = { width: number; height: number };
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 const NEW_FIRST = ["god-saeng", ...words.map((w) => w.id).filter((id) => id !== "god-saeng").slice(0, 9)];
@@ -31,7 +30,7 @@ function progress(roundId: string, wordIds: string[], answered: number): Progres
 
 interface OpenOptions {
   colorScheme: ColorScheme;
-  viewport: Viewport;
+  viewport: ViewportSize;
   failWords?: boolean;
   initScript?: string;
 }

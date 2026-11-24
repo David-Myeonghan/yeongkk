@@ -15,6 +15,7 @@ import { shareEnvFrom } from "../platform/shareEnv";
 import { shareDataFor, type ResultShareData } from "../platform/shareData";
 import { markRoundCompleted } from "../state/completed";
 import { clearProgress } from "../state/progress";
+import { roundExperimentProps } from "../state/variants";
 import * as q from "../styles/quiz.css";
 import * as ui from "../styles/screen.css";
 import { vars } from "../styles/theme.css";
@@ -70,7 +71,7 @@ function ResultBody({ view, leave }: { view: QuizView; leave(fn: () => void): vo
 
   const { roundId } = view.progress;
   useEffect(() => {
-    if (markRoundCompleted(app.store, roundId)) track("round_complete", { correct, total });
+    if (markRoundCompleted(app.store, roundId)) track("round_complete", { correct, total, ...roundExperimentProps(app.store, roundId) });
   }, [app.store, roundId, correct, total]);
 
   useEffect(() => {
@@ -86,7 +87,7 @@ function ResultBody({ view, leave }: { view: QuizView; leave(fn: () => void): vo
     setNote(null);
     track("share_click");
     void shareResult(shareDataFor(correct, total, window.location.origin)).then(({ note: next, result }) => {
-      track("share_done", { via: result.via, completed: result.completed });
+      track("share_done", { via: result.via, completed: result.completed, ...roundExperimentProps(app.store, roundId) });
       setNote(next);
       if (next?.kind === "copied") app.announce(COPIED);
       if (next?.kind === "manual") app.announce(next.hint);

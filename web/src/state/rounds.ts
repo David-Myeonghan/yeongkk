@@ -4,9 +4,7 @@ import type { Word } from "@yk/quiz-core/types";
 import type { PropValue } from "../telemetry/queue";
 import type { KeyValue, Progress } from "./progress";
 import { roundDay } from "./session";
-import { loadRoundFlags, saveRoundFlags, type RoundFlags } from "./variants";
-
-const FUNNY_WRONG = "funny-wrong";
+import { FUNNY_WRONG, loadRoundFlags, saveRoundFlags, type RoundFlags } from "./variants";
 
 export interface RoundTrackerDeps {
   track: (name: EventName, props?: Record<string, PropValue>) => void;

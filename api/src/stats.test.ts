@@ -19,6 +19,7 @@ const seed = (
   props: extra.props ? JSON.stringify(extra.props) : null,
 });
 
+const done = { via: "native", completed: true };
 const D1 = "2026-11-20";
 const D2 = "2026-11-21";
 const D3 = "2026-11-22";
@@ -60,7 +61,7 @@ describe("GET /api/stats 인증", () => {
     const res = await get(`?from=${D1}&to=${D3}`);
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("no-store");
-    expect(await res.json()).toEqual({ days: [], experiments: [], hosts: [], shareVia: {} });
+    expect(await res.json()).toEqual({ days: [], experiments: [], hosts: [], shareVia: {}, shareAttempts: {} });
   });
 
   it("인증은 날짜 검사보다 먼저", async () => {
@@ -92,6 +93,7 @@ describe("GET /api/stats 집계", () => {
     experiments: { id: string; variant: string; exposed: number; completed: number; shared: number }[];
     hosts: { host: string; appVersion: string; opened: number }[];
     shareVia: Record<string, number>;
+    shareAttempts: Record<string, number>;
   }>();
 
   it("같은 사람이 여러 번 열어도 opened 는 1, 단계별 사람 수를 센다", async () => {
@@ -100,7 +102,7 @@ describe("GET /api/stats 집계", () => {
       seed(D2, "anon-bbbbbbbb", "app_open"),
       seed(D2, "anon-aaaaaaaa", "round_start"), seed(D2, "anon-aaaaaaaa", "round_start"), seed(D2, "anon-bbbbbbbb", "round_start"),
       seed(D2, "anon-aaaaaaaa", "round_complete"),
-      seed(D2, "anon-aaaaaaaa", "share_done"), seed(D2, "anon-aaaaaaaa", "share_done"),
+      seed(D2, "anon-aaaaaaaa", "share_done", { props: done }), seed(D2, "anon-aaaaaaaa", "share_done", { props: done }),
       seed(D2, "anon-aaaaaaaa", "share_click"),
     ]);
     expect((await stats()).days).toEqual([
@@ -138,18 +140,24 @@ describe("GET /api/stats 집계", () => {
     expect((await stats()).days.map((d) => [d.day, d.opened])).toEqual([[D2, 1]]);
   });
 
-  it("실험별 수는 experiment_exposure 를 받은 사람만 센다", async () => {
+  it("실험별 수는 노출을 받은 사람의 같은 실험 · 같은 변형 표시가 붙은 이벤트만 센다", async () => {
     const exposure = (anon: string, exp: string, variant: string) =>
       seed(D2, anon, "experiment_exposure", { props: { exp, variant } });
+    const tag = (exp: string, variant: string, extra: Record<string, unknown> = {}) => ({ props: { exp, variant, ...extra } });
     await insertEvents(env, [
       exposure("anon-aaaaaaaa", "e1", "A"), exposure("anon-aaaaaaaa", "e1", "A"),
       exposure("anon-bbbbbbbb", "e1", "A"),
       exposure("anon-cccccccc", "e1", "B"),
       exposure("anon-aaaaaaaa", "e2", "X"),
-      seed(D2, "anon-aaaaaaaa", "round_complete"), seed(D3, "anon-aaaaaaaa", "round_complete"),
-      seed(D2, "anon-aaaaaaaa", "share_done"),
-      seed(D2, "anon-cccccccc", "round_complete"),
-      seed(D2, "anon-dddddddd", "round_complete"), seed(D2, "anon-dddddddd", "share_done"),
+      seed(D2, "anon-aaaaaaaa", "round_complete", tag("e1", "A")), seed(D3, "anon-aaaaaaaa", "round_complete", tag("e1", "A")),
+      seed(D2, "anon-aaaaaaaa", "share_done", tag("e1", "A", { via: "native", completed: true })),
+      seed(D2, "anon-aaaaaaaa", "round_complete", tag("e2", "X")),
+      seed(D2, "anon-aaaaaaaa", "share_done", tag("e2", "X", { via: "native", completed: true })),
+      seed(D2, "anon-bbbbbbbb", "round_complete", tag("e2", "A")),
+      seed(D2, "anon-bbbbbbbb", "share_done", tag("e2", "A", { via: "native", completed: true })),
+      seed(D2, "anon-cccccccc", "round_complete", tag("e1", "B")),
+      seed(D2, "anon-dddddddd", "round_complete", tag("e1", "A")),
+      seed(D2, "anon-dddddddd", "share_done", tag("e1", "A", { via: "native", completed: true })),
       seed(D2, "anon-eeeeeeee", "experiment_exposure", { props: { exp: "e1" } }),
       seed(D2, "anon-eeeeeeee", "experiment_exposure"),
       seed(D2, "anon-ffffffff", "experiment_exposure", { props: { exp: 5, variant: "A" } }),
@@ -162,11 +170,29 @@ describe("GET /api/stats 집계", () => {
   });
 
   it("노출 뒤 범위 밖에서만 완료한 사람은 completed 에 세지 않는다", async () => {
+    const arm = { props: { exp: "e1", variant: "A" } };
     await insertEvents(env, [
-      seed(D2, "anon-aaaaaaaa", "experiment_exposure", { props: { exp: "e1", variant: "A" } }),
-      seed("2026-12-30", "anon-aaaaaaaa", "round_complete"),
+      seed(D2, "anon-aaaaaaaa", "experiment_exposure", arm),
+      seed("2026-12-30", "anon-aaaaaaaa", "round_complete", arm),
+      seed("2026-12-30", "anon-aaaaaaaa", "share_done", { props: { ...arm.props, via: "native", completed: true } }),
     ]);
     expect((await stats()).experiments).toEqual([{ id: "e1", variant: "A", exposed: 1, completed: 0, shared: 0 }]);
+  });
+
+  it("표시 없는 완료는 노출된 판이 아니므로 세지 않고, 표시 있는 완료와 겹쳐도 한 번만 센다", async () => {
+    const arm = (variant: string) => ({ props: { exp: "funny-wrong", variant } });
+    await insertEvents(env, [
+      seed(D2, "anon-aaaaaaaa", "experiment_exposure", arm("off")),
+      seed(D2, "anon-aaaaaaaa", "round_complete"),
+      seed(D2, "anon-aaaaaaaa", "round_complete", arm("off")),
+      seed(D2, "anon-bbbbbbbb", "experiment_exposure", arm("off")),
+      seed(D2, "anon-bbbbbbbb", "round_complete"),
+      seed(D2, "anon-cccccccc", "experiment_exposure", arm("off")),
+      seed(D2, "anon-cccccccc", "round_complete", arm("on")),
+    ]);
+    expect((await stats()).experiments).toEqual([
+      { id: "funny-wrong", variant: "off", exposed: 3, completed: 1, shared: 0 },
+    ]);
   });
 
   it("hosts 는 host · 앱 버전(null 은 빈 글)별 app_open 사람 수", async () => {
@@ -186,17 +212,36 @@ describe("GET /api/stats 집계", () => {
     ]);
   });
 
-  it("shareVia 는 share_done 의 via 별 건수", async () => {
+  it("shareVia 는 완료된 공유의 via 별 건수, shareAttempts 는 모든 share_done 의 via 별 건수", async () => {
+    const ok = (via: string) => ({ via, completed: true });
     await insertEvents(env, [
-      seed(D2, "anon-aaaaaaaa", "share_done", { props: { via: "kakao" } }),
-      seed(D2, "anon-aaaaaaaa", "share_done", { props: { via: "kakao" } }),
-      seed(D2, "anon-bbbbbbbb", "share_done", { props: { via: "link" } }),
-      seed(D2, "anon-bbbbbbbb", "share_done", { props: { via: "__proto__" } }),
+      seed(D2, "anon-aaaaaaaa", "share_done", { props: ok("kakao") }),
+      seed(D2, "anon-aaaaaaaa", "share_done", { props: ok("kakao") }),
+      seed(D2, "anon-bbbbbbbb", "share_done", { props: ok("link") }),
+      seed(D2, "anon-bbbbbbbb", "share_done", { props: ok("__proto__") }),
+      seed(D2, "anon-bbbbbbbb", "share_done", { props: { via: "link", completed: false } }),
       seed(D2, "anon-bbbbbbbb", "share_done"),
-      seed(D2, "anon-cccccccc", "share_click", { props: { via: "kakao" } }),
+      seed(D2, "anon-cccccccc", "share_click", { props: ok("kakao") }),
     ]);
-    const { shareVia } = await stats();
+    const { shareVia, shareAttempts } = await stats();
     expect(Object.entries(shareVia).sort()).toEqual([["__proto__", 1], ["kakao", 2], ["link", 1]]);
+    expect(Object.entries(shareAttempts).sort()).toEqual([["__proto__", 1], ["kakao", 2], ["link", 2]]);
+  });
+
+  it("끝까지 공유한 사람만 shared: 취소한 공유와 via none 은 시도로만 센다", async () => {
+    const arm = { exp: "e1", variant: "A" };
+    await insertEvents(env, [
+      seed(D2, "anon-aaaaaaaa", "share_done", { props: { via: "native", completed: true, ...arm } }),
+      seed(D2, "anon-bbbbbbbb", "share_done", { props: { via: "web-share", completed: false, ...arm } }),
+      seed(D2, "anon-cccccccc", "share_done", { props: { via: "none", completed: false, ...arm } }),
+      ...["anon-aaaaaaaa", "anon-bbbbbbbb", "anon-cccccccc"].map((a) =>
+        seed(D2, a, "experiment_exposure", { props: arm })),
+    ]);
+    const s = await stats();
+    expect(s.days[0]?.shared).toBe(1);
+    expect(s.shareVia).toEqual({ native: 1 });
+    expect(s.shareAttempts).toEqual({ native: 1, "web-share": 1, none: 1 });
+    expect(s.experiments).toEqual([{ id: "e1", variant: "A", exposed: 3, completed: 0, shared: 1 }]);
   });
 
   it("POST 는 405", async () => {

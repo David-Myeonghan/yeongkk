@@ -1,6 +1,7 @@
 import { isRecord } from "../data/guards";
 import type { KeyValue } from "./progress";
 
+export const FUNNY_WRONG = "funny-wrong";
 export const ROUND_FLAGS_KEY = "yk.round-flags.v1";
 
 export interface RoundFlags {
@@ -33,4 +34,10 @@ export function saveRoundFlags(store: KeyValue, flags: RoundFlags): void {
 /** 판이 시작될 때 정해 둔 값. 없으면(옛 판) 제품 기본값인 켜짐. */
 export function funnyWrongOn(store: KeyValue, roundId: string): boolean {
   return loadRoundFlags(store, roundId)?.funnyWrong ?? true;
+}
+
+/** 판이 배정된 변형으로 시작했을 때만 이벤트에 붙이는 실험 표시. */
+export function roundExperimentProps(store: KeyValue, roundId: string): Record<string, string> {
+  const variant = loadRoundFlags(store, roundId)?.variant;
+  return variant ? { exp: FUNNY_WRONG, variant } : {};
 }

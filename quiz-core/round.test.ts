@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { seededRng } from "./rng";
-import { pickRound } from "./round";
+import { isNew, pickRound } from "./round";
 import type { Word } from "./types";
 
 const TODAY = "2026-12-08";
@@ -119,5 +119,24 @@ describe("pickRound — 판 구성", () => {
     const round = pickRound(words, { today: TODAY, rng: seededRng("x") });
     expect(round).toHaveLength(6);
     expect(new Set(round.map((w) => w.id)).size).toBe(6);
+  });
+});
+
+describe("isNew — 최근 추가 단어", () => {
+  it("기본 7일: 오늘·7일 전은 NEW, 8일 전·미래는 아님", () => {
+    expect(isNew(word(0, "2026-12-08"), TODAY)).toBe(true);
+    expect(isNew(word(0, "2026-12-01"), TODAY)).toBe(true);
+    expect(isNew(word(0, "2026-11-30"), TODAY)).toBe(false);
+    expect(isNew(word(0, "2026-12-09"), TODAY)).toBe(false);
+  });
+
+  it("withinDays 를 바꿀 수 있다", () => {
+    expect(isNew(word(0, "2026-12-06"), TODAY, 1)).toBe(false);
+    expect(isNew(word(0, "2026-12-07"), TODAY, 1)).toBe(true);
+  });
+
+  it("날짜가 잘못되면 던지지 않고 false", () => {
+    expect(isNew(word(0, "어제"), TODAY)).toBe(false);
+    expect(isNew(word(0, "2026-12-08"), "2026-02-30")).toBe(false);
   });
 });

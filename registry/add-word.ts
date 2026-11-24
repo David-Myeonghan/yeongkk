@@ -2,7 +2,7 @@ import { createInterface } from "node:readline/promises";
 import { writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { makeWord } from "./add-word-core";
-import { loadWords, loadBanned } from "./load";
+import { loadWords, loadBanned, LOCALE_DIR } from "./load";
 import { runAll, toMarkdown } from "./validate";
 
 if (execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()) {
@@ -19,7 +19,7 @@ const a = {
   funnyWrong: await list("웃긴 오답"), sources: await list("출처 주소 2개 이상 (서로 다른 플랫폼)"),
 };
 rl.close();
-if (!/^[a-z]{2}-[A-Z]{2}$/.test(locale) || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(a.id)) {
+if (!LOCALE_DIR.test(locale) || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(a.id)) {
   console.error("로케일(예: ko-KR) 또는 id(영문 소문자·숫자·-) 형식이 틀림");
   process.exit(1);
 }

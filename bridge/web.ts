@@ -15,7 +15,7 @@ export interface WebBridge {
   ready(): Promise<HostInfo | null>;
   host(): HostInfo | null;
   has(name: string, minVersion?: number): boolean;
-  call<T = unknown>(name: string, payload?: unknown, opts?: { timeoutMs?: number }): Promise<T>;
+  call(name: string, payload?: unknown, opts?: { timeoutMs?: number }): Promise<unknown>;
   on(event: string, fn: (payload: unknown) => void): () => void;
   receive(raw: unknown): void;
 }
@@ -108,11 +108,11 @@ export function createWebBridge(env: WebBridgeEnv, opts: WebBridgeOptions = {}):
     ready,
     host: () => hostInfo,
     has,
-    call<T = unknown>(name: string, payload?: unknown, callOpts?: { timeoutMs?: number }): Promise<T> {
-      const run = (): Promise<T> => {
+    call(name, payload, callOpts) {
+      const run = (): Promise<unknown> => {
         if (!hostInfo) return Promise.reject(new BridgeError("NO_HOST", "not running inside the app"));
         if (!has(name)) return Promise.reject(new BridgeError("UNSUPPORTED", `app does not support ${name}`));
-        return send(name, payload, callOpts?.timeoutMs ?? callTimeoutMs) as Promise<T>;
+        return send(name, payload, callOpts?.timeoutMs ?? callTimeoutMs);
       };
       return hostInfo !== null ? run() : ready().then(run);
     },

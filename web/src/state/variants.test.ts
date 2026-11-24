@@ -38,12 +38,11 @@ const only = (variant: "on" | "off" | "split", enabled = true): RemoteConfig => 
   ],
 });
 
-function setup(initial: RemoteConfig | null) {
+function setup(initial: RemoteConfig | null, store = memoryStore()) {
   const state = { cfg: initial };
   const track = vi.fn();
   const experiments = createExperiments({ getConfig: () => state.cfg, anonId: () => "anon-12345678", track });
   const rounds = createRoundTracker({ ...experiments, track });
-  const store = memoryStore();
   const begin = (roundId: string, resumed = false) => rounds.begin({ store, progress: progress(roundId), words, resumed });
   const names = () => track.mock.calls.map((c) => c[0]);
   return { state, store, begin, track, names };
@@ -155,10 +154,15 @@ describe("이벤트", () => {
   });
 
   it("깃발에 variant 가 저장돼, 이어 풀기에서도 같은 변형으로 노출한다", () => {
-    const s = setup(only("off"));
-    s.begin("r1");
-    const stored = JSON.parse(s.store.data.get(ROUND_FLAGS_KEY)!);
-    expect(stored).toEqual({ roundId: "r1", funnyWrong: false, variant: "off" });
+    const store = memoryStore();
+    const first = setup(only("off"), store);
+    first.begin("r1");
+    expect(JSON.parse(store.data.get(ROUND_FLAGS_KEY)!)).toEqual({ roundId: "r1", funnyWrong: false, variant: "off" });
+
+    const reload = setup(only("on"), store);
+    reload.begin("r1", true);
+    const exposures = reload.track.mock.calls.filter((c) => c[0] === "experiment_exposure");
+    expect(exposures).toEqual([["experiment_exposure", { exp: "funny-wrong", variant: "off" }]]);
   });
 
   it("단어 글자는 이벤트 속성에 없다", () => {

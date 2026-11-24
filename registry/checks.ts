@@ -1,9 +1,8 @@
-import type { LoadedWord, Problem, Word } from "./types";
+import { P, type LoadedWord, type Problem, type Word } from "./types";
 import { validateWordSchema } from "./schema";
 
 export const normKey = (s: string) => s.normalize("NFKC").replace(/[\s\p{Cf}]/gu, "").toLowerCase();
 export const normText = (s: string) => s.normalize("NFKC").replace(/\p{Cf}/gu, "").replace(/\s+/g, " ").toLowerCase();
-const P = (file: string, rule: string, message: string): Problem => ({ file, rule, message });
 
 export function checkFormat(w: LoadedWord): Problem[] {
   const out: Problem[] = [];

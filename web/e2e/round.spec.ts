@@ -88,6 +88,20 @@ test("5번째에서 새로 고침", async ({ context, page }) => {
   expect(outside).toEqual([]);
 });
 
+test("판 도중 6시간이 지나면 처음 화면에서 알려 준다", async ({ context, page }) => {
+  await page.clock.install({ time: new Date() });
+  await page.clock.resume();
+  await open(context, page);
+  await page.getByRole("button", { name: "시작" }).click();
+  await onQuestion(page, 1);
+
+  await page.clock.setSystemTime(new Date(Date.now() + 7 * 3_600_000));
+  await choices(page).first().click();
+
+  await expect(page.getByRole("button", { name: "시작" })).toBeVisible();
+  await expect(page.getByRole("main").getByText("시간이 지나서 새로 시작해요.")).toBeVisible();
+});
+
 test("단어 요청 실패", async ({ context, page }) => {
   const { outside, net } = await open(context, page, { failWords: true });
 

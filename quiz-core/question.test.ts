@@ -44,6 +44,24 @@ describe("makeQuestion — 문제 만들기", () => {
     }
   });
 
+  it("word 유형: 같은 뜻의 다른 단어는 보기에 나오지 않는다", () => {
+    const words = [word(0), word(1, { meaning: "뜻0" }), word(2), word(3), word(4)];
+    for (const seed of ["a", "b", "c", "d", "e", "f"]) {
+      const q = makeQuestion(words[0]!, words, { kind: "word", rng: seededRng(seed), funnyWrong: false });
+      expect(q.choices).not.toContain("단어1");
+      expect(q.choices[q.answerIndex]).toBe("단어0");
+    }
+  });
+
+  it("meaning 유형: 같은 단어 글자의 다른 항목은 보기에 나오지 않는다", () => {
+    const words = [word(0), word(1, { word: "단어0" }), word(2), word(3), word(4)];
+    for (const seed of ["a", "b", "c", "d", "e", "f"]) {
+      const q = makeQuestion(words[0]!, words, { kind: "meaning", rng: seededRng(seed), funnyWrong: false });
+      expect(q.choices).not.toContain("뜻1");
+      expect(q.choices[q.answerIndex]).toBe("뜻0");
+    }
+  });
+
   it("정답 위치는 rng 가 정한다", () => {
     const positions = new Set(
       ["a", "b", "c", "d", "e", "f", "g", "h"].map(

@@ -1,9 +1,9 @@
 import type { EventName } from "@yk/quiz-core/events";
+import { LOCALE } from "../data/locale";
 import type { KeyValue } from "../state/progress";
 import { createQueue, type PropValue, type QueuedEvent } from "./queue";
 import { buildBody, eventsUrl, sendEvents, type Envelope } from "./send";
 
-const LOCALE = "ko-KR";
 const FLUSH_DELAY_MS = 2000;
 const MAX_PROPS = 20;
 const MAX_STRING = 200;
@@ -44,12 +44,13 @@ export function createTelemetry(deps: TelemetryDeps) {
   let leaving = false;
   let timer: unknown = null;
 
+  const envelope = (): Envelope => ({ anonId: deps.anonId(), locale: LOCALE, ...deps.getHost() });
+
   const queue = createQueue({
     store: deps.store,
     send: async (batch: QueuedEvent[]) => {
       const api = deps.getApi();
-      const envelope: Envelope = { anonId: deps.anonId(), locale: LOCALE, ...deps.getHost() };
-      return sendEvents(deps.fetchFn, api, envelope, batch);
+      return sendEvents(deps.fetchFn, api, envelope(), batch);
     },
   });
 
@@ -57,8 +58,7 @@ export function createTelemetry(deps: TelemetryDeps) {
     const beacon = deps.beacon;
     if (!beacon) return;
     queue.takeIdle((batch) => {
-      const envelope: Envelope = { anonId: deps.anonId(), locale: LOCALE, ...deps.getHost() };
-      return beacon(eventsUrl(deps.getApi()), buildBody(envelope, batch));
+      return beacon(eventsUrl(deps.getApi()), buildBody(envelope(), batch));
     });
   };
 

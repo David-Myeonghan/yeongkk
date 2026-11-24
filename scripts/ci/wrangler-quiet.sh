@@ -11,12 +11,15 @@ filter() {
       cat
     else
       awk '
-        BEGIN { skipping = 0 }
-        /Getting User settings|You are logged in|Account Name/ { skipping = 1 }
-        skipping && (/^(🪵|Logs were written)/ || /^[[:space:]]*(✘|▲)/ || /\[ERROR\]|\[WARNING\]/) { skipping = 0 }
+        # 색 코드를 뗀 복사본(plain)으로 판정한다. 출력은 원본 그대로.
+        { plain = $0; gsub(/\033\[[0-9;]*m/, "", plain) }
+        # 구역 시작: whoami 블록 (계정 이름 · 토큰 권한)
+        plain ~ /Getting User settings|You are logged in/ { skipping = 1 }
+        # 구역 끝: 로그 위치 줄(🪵) 또는 오류 · 경고 줄
+        skipping && plain ~ /^(🪵|[[:space:]]*(✘|▲|\[ERROR\]|\[WARNING\]))/ { skipping = 0 }
         skipping { next }
-        /│|\|/ { next }
-        /^[[:space:]]*(┌|├|└)/ { next }
+        # 구역 밖에 새어 나온 표 줄: 줄 맨 앞이 표 문자일 때만 (esbuild 소스 발췌 "  1 │ ..." 는 남긴다)
+        plain ~ /^[[:space:]]*(│|┌|├|└|\|)/ { next }
         { print }
       '
       echo "계정 정보(계정 이름 · 토큰 권한 표)는 공개 로그에 남기지 않으려고 가렸습니다. 내 컴퓨터에서 npx wrangler whoami 로 확인하세요."
@@ -28,7 +31,7 @@ if [ "${1:-}" = "--yk-filter" ]; then
   exit 0
 fi
 
-out="$(mktemp)"
+out="$(mktemp "${TMPDIR:-/tmp}/wrangler-quiet.XXXXXX")"
 trap 'rm -f "$out"' EXIT
 code=0
 npm exec --no -- wrangler "$@" >"$out" 2>&1 || code=$?

@@ -153,6 +153,8 @@ describe("GET /api/stats 집계", () => {
       seed(D2, "anon-aaaaaaaa", "share_done", tag("e1", "A", { via: "native", completed: true })),
       seed(D2, "anon-aaaaaaaa", "round_complete", tag("e2", "X")),
       seed(D2, "anon-aaaaaaaa", "share_done", tag("e2", "X", { via: "native", completed: true })),
+      seed(D2, "anon-bbbbbbbb", "round_complete", tag("e2", "A")),
+      seed(D2, "anon-bbbbbbbb", "share_done", tag("e2", "A", { via: "native", completed: true })),
       seed(D2, "anon-cccccccc", "round_complete", tag("e1", "B")),
       seed(D2, "anon-dddddddd", "round_complete", tag("e1", "A")),
       seed(D2, "anon-dddddddd", "share_done", tag("e1", "A", { via: "native", completed: true })),
@@ -165,6 +167,16 @@ describe("GET /api/stats 집계", () => {
       { id: "e1", variant: "B", exposed: 1, completed: 1, shared: 0 },
       { id: "e2", variant: "X", exposed: 1, completed: 1, shared: 1 },
     ]);
+  });
+
+  it("노출 뒤 범위 밖에서만 완료한 사람은 completed 에 세지 않는다", async () => {
+    const arm = { props: { exp: "e1", variant: "A" } };
+    await insertEvents(env, [
+      seed(D2, "anon-aaaaaaaa", "experiment_exposure", arm),
+      seed("2026-12-30", "anon-aaaaaaaa", "round_complete", arm),
+      seed("2026-12-30", "anon-aaaaaaaa", "share_done", { props: { ...arm.props, via: "native", completed: true } }),
+    ]);
+    expect((await stats()).experiments).toEqual([{ id: "e1", variant: "A", exposed: 1, completed: 0, shared: 0 }]);
   });
 
   it("표시 없는 완료는 노출된 판이 아니므로 세지 않고, 표시 있는 완료와 겹쳐도 한 번만 센다", async () => {

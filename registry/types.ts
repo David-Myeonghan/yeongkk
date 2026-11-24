@@ -15,3 +15,4 @@ export interface CheckContext {
   root?: string;                      // 있으면 임시 폴더에 실제로 묶어 본다
   isBot: boolean;                     // head 브랜치가 auto/ 로 시작
 }
+export const P = (file: string, rule: string, message: string): Problem => ({ file, rule, message });

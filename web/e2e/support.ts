@@ -58,16 +58,16 @@ export async function startPreview(): Promise<{ base: string; stop: () => boolea
   return { base, stop: () => child.kill("SIGTERM") };
 }
 
-/**
- * 단어 · 설정을 가짜 파일로, /api/** 를 204 로 막고, sendBeacon 을 끈다.
- * apiCalls 배열에 요청을 적는다. `api` 가 함수면 /api/** 를 그 함수가 맡는다. 반환값: apiCalls, setWordsFailing(bool).
- */
 export interface StubNetworkOptions {
   failWords?: boolean;
   api?: (route: Route) => Promise<void>;
   apiCalls?: string[];
 }
 
+/**
+ * 단어 · 설정을 가짜 파일로, /api/** 를 204 로 막고, sendBeacon 을 끈다.
+ * apiCalls 배열에 요청을 적는다. `api` 가 함수면 /api/** 를 그 함수가 맡는다. 반환값: apiCalls, setWordsFailing(bool).
+ */
 export async function stubNetwork(
   context: BrowserContext,
   { failWords = false, api, apiCalls = [] }: StubNetworkOptions = {},

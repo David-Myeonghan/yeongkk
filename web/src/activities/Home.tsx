@@ -5,7 +5,7 @@ import { match } from "ts-pattern";
 import { visuallyHidden } from "../app/a11y.css";
 import { useAppData, type FailReason } from "../app/AppData";
 import { rounds } from "../app/services";
-import { useBehind, useHeadingFocus, useOnce } from "../app/screen";
+import { EXPIRED, useBehind, useHeadingFocus, useOnce } from "../app/screen";
 import { newRoundId } from "../state/ids";
 import { clearProgress, loadProgress, saveProgress } from "../state/progress";
 import { isFinished, startRound } from "../state/session";
@@ -13,8 +13,6 @@ import { localDate } from "../state/today";
 import * as home from "../styles/home.css";
 import * as ui from "../styles/screen.css";
 import { vars } from "../styles/theme.css";
-
-const EXPIRED = "시간이 지나서 새로 시작해요.";
 
 const failCopy = (reason: FailReason) =>
   match(reason)

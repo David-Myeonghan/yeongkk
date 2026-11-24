@@ -10,6 +10,7 @@ import { visuallyHidden } from "./a11y.css";
 import { useAppData } from "./AppData";
 
 export const WORDS_CHANGED = "단어가 바뀌어서 새로 시작해요.";
+export const EXPIRED = "시간이 지나서 새로 시작해요.";
 
 /** 화면이 바뀔 때 제목으로 포커스. 앱을 처음 연 첫 화면은 건드리지 않는다. */
 export function useHeadingFocus<T extends HTMLElement>() {
@@ -76,11 +77,16 @@ export function useQuizRoute(screen: QuizScreen, rawIndex: string | undefined) {
     if (!isTop) return;
     match(route)
       .with({ kind: "show" }, () => {})
-      .with({ kind: "home" }, () => leave(() => pop()))
+      .with({ kind: "home" }, () =>
+        leave(() => {
+          if (words && !progress) app.setNotice(EXPIRED);
+          pop();
+        }),
+      )
       .with({ kind: "go", to: "Question" }, (r) => leave(() => replace("Question", { index: String(r.index) })))
       .with({ kind: "go", to: "Result" }, () => leave(() => replace("Result", {})))
       .exhaustive();
-  }, [isTop, route, leave, pop, replace]);
+  }, [isTop, route, words, progress, app, leave, pop, replace]);
 
   const view: QuizView | null = route.kind === "show" && words && progress ? { words, progress, index } : null;
   return { view, restart, leave };

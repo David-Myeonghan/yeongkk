@@ -1,6 +1,6 @@
 import { AppScreen } from "@stackflow/plugin-basic-ui";
 import { useFlow, type ActivityComponentType } from "@stackflow/react";
-import { share, type ShareData, type ShareResult } from "@yk/bridge/share";
+import { share, type ShareResult } from "@yk/bridge/share";
 import { RESULT_COPY, resultTier, score } from "@yk/quiz-core/score";
 import { useEffect, useRef, useState } from "react";
 import { match } from "ts-pattern";
@@ -11,7 +11,7 @@ import { rounds, track } from "../app/services";
 import { quizAppBar, useBehind, useHeadingFocus, useQuizRoute, type QuizView } from "../app/screen";
 import { getBridge } from "../platform/bridge";
 import { shareEnvFrom } from "../platform/shareEnv";
-import { shareDataFor } from "../platform/shareData";
+import { shareDataFor, type ResultShareData } from "../platform/shareData";
 import { newRoundId } from "../state/ids";
 import { markRoundCompleted } from "../state/completed";
 import { clearProgress, saveProgress } from "../state/progress";
@@ -27,13 +27,13 @@ const MANUAL_TEXT_HINT = "글을 길게 눌러 복사해 주세요";
 
 type ShareNote = { kind: "copied" } | { kind: "manual"; hint: string; copyable: string } | null;
 
-function manualNote(data: ShareData): ShareNote {
+function manualNote(data: ResultShareData): ShareNote {
   return data.url
     ? { kind: "manual", hint: MANUAL_HINT, copyable: data.url }
-    : { kind: "manual", hint: MANUAL_TEXT_HINT, copyable: data.text ?? "" };
+    : { kind: "manual", hint: MANUAL_TEXT_HINT, copyable: data.text };
 }
 
-async function shareResult(data: ShareData): Promise<{ note: ShareNote; result: ShareResult }> {
+async function shareResult(data: ResultShareData): Promise<{ note: ShareNote; result: ShareResult }> {
   try {
     const result = await share(getBridge(), data, shareEnvFrom(navigator));
     const note = match(result.via)

@@ -1,4 +1,5 @@
-import type { AddedLines, Decision, ReviewMode } from "./types";
+import { parseMarker } from "./marker";
+import type { AddedLines, Decision, ReviewComment, ReviewMode } from "./types";
 
 export const OUT_DIR = "review-out";
 export const OUT_FILES = {
@@ -11,7 +12,6 @@ export const OUT_FILES = {
 
 export const BODY_CAP = 8000;
 
-const MARKER = /^<!-- yk-review head_sha=([0-9a-f]{40}) mode=(full|incremental) -->$/;
 const VERDICT = /^\*\*판정: (APPROVE|REQUEST_CHANGES)\*\*\s*$/gm;
 
 export type ReviewOutput = {
@@ -30,13 +30,13 @@ export function parseDecision(raw: string): Decision | undefined {
 function checkMarker(body: string, expected: ReviewOutput["expected"]): string[] {
   const [first = ""] = body.split("\n");
   if (first.startsWith("\uFEFF")) return ["본문 첫 글자가 BOM(U+FEFF)이다. BOM 을 없애고 첫 줄을 표지로 시작해야 한다."];
-  const found = MARKER.exec(first.trimEnd());
-  if (found === null) {
+  const found = parseMarker(first);
+  if (found === undefined) {
     return [`본문 첫 줄이 표지가 아니다. 첫 줄은 정확히 \`<!-- yk-review head_sha=<40자 커밋> mode=<full|incremental> -->\` 여야 한다. 지금 첫 줄: ${first.slice(0, 80)}`];
   }
   const errors: string[] = [];
-  if (found[1] !== expected.headSha) errors.push(`표지의 head_sha 가 PR head 와 다르다. 기대 ${expected.headSha}, 표지 ${found[1]}.`);
-  if (found[2] !== expected.mode) errors.push(`표지의 mode 가 다르다. 기대 ${expected.mode}, 표지 ${found[2]}.`);
+  if (found.headSha !== expected.headSha) errors.push(`표지의 head_sha 가 PR head 와 다르다. 기대 ${expected.headSha}, 표지 ${found.headSha}.`);
+  if (found.mode !== expected.mode) errors.push(`표지의 mode 가 다르다. 기대 ${expected.mode}, 표지 ${found.mode}.`);
   return errors;
 }
 
@@ -62,15 +62,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function checkComments(raw: string | undefined, addedLines: AddedLines): string[] {
-  if (raw === undefined) return [];
+type CommentsRead = { comments: ReviewComment[]; errors: string[] };
+
+function readComments(raw: string | undefined): CommentsRead {
+  if (raw === undefined) return { comments: [], errors: [] };
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    return [`${OUT_FILES.comments} 가 JSON 이 아니다.`];
+    return { comments: [], errors: [`${OUT_FILES.comments} 가 JSON 이 아니다.`] };
   }
-  if (!Array.isArray(parsed)) return [`${OUT_FILES.comments} 는 배열이어야 한다.`];
+  if (!Array.isArray(parsed)) return { comments: [], errors: [`${OUT_FILES.comments} 는 배열이어야 한다.`] };
+  const comments: ReviewComment[] = [];
   const errors: string[] = [];
   parsed.forEach((item: unknown, index) => {
     const label = `${OUT_FILES.comments}[${index}]`;
@@ -82,28 +85,30 @@ function checkComments(raw: string | undefined, addedLines: AddedLines): string[
     if (typeof path !== "string" || path === "") return void errors.push(`${label}.path 는 비어 있지 않은 문자열이어야 한다.`);
     if (typeof line !== "number" || !Number.isInteger(line) || line < 1) return void errors.push(`${label}.line 은 1 이상의 정수여야 한다.`);
     if (typeof body !== "string" || body.trim() === "") return void errors.push(`${label}.body 는 비어 있지 않은 문자열이어야 한다.`);
-    if (addedLines.get(path)?.has(line) !== true) {
-      errors.push(`${label}: ${path}:${line} 는 이 PR 이 더하거나 바꾼 줄이 아니다. 코멘트를 바뀐 줄로 옮기거나 지운다.`);
-    }
+    comments.push({ path, line, body });
   });
-  return errors;
+  return { comments, errors };
 }
 
-export function validateReview(output: ReviewOutput): string[] {
-  return [
+function checkAddedLines(comments: ReviewComment[], addedLines: AddedLines): string[] {
+  return comments.flatMap((c, index) =>
+    addedLines.get(c.path)?.has(c.line) === true
+      ? []
+      : [`${OUT_FILES.comments}[${index}]: ${c.path}:${c.line} 는 이 PR 이 더하거나 바꾼 줄이 아니다. 코멘트를 바뀐 줄로 옮기거나 지운다.`],
+  );
+}
+
+export type Validation = { ok: true; decision: Decision; comments: ReviewComment[] } | { ok: false; errors: string[] };
+
+export function validateReview(output: ReviewOutput): Validation {
+  const read = readComments(output.comments);
+  const errors = [
     ...checkMarker(output.body, output.expected),
     ...checkDecision(output.body, output.decision),
     ...checkLength(output.body),
-    ...checkComments(output.comments, output.addedLines),
+    ...read.errors,
+    ...(read.errors.length === 0 ? checkAddedLines(read.comments, output.addedLines) : []),
   ];
-}
-
-export function parseComments(raw: string): Array<{ path: string; line: number; body: string }> {
-  const parsed: unknown = JSON.parse(raw);
-  if (!Array.isArray(parsed)) return [];
-  return parsed.flatMap((item: unknown) =>
-    isRecord(item) && typeof item.path === "string" && typeof item.line === "number" && typeof item.body === "string"
-      ? [{ path: item.path, line: item.line, body: item.body }]
-      : [],
-  );
+  const decision = parseDecision(output.decision);
+  return errors.length > 0 || decision === undefined ? { ok: false, errors } : { ok: true, decision, comments: read.comments };
 }

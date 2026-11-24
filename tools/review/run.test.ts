@@ -2,14 +2,15 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { renderMarker } from "./marker";
 import { buildPrompt } from "./prompt";
 import { main, parseArgs } from "./run";
 import type { Run } from "./types";
 
 const SHA = "f".repeat(40);
 const PREV = "9".repeat(40);
-const marker = (sha: string, mode: string) => `<!-- yk-review head_sha=${sha} mode=${mode} -->`;
-const REVIEW = (sha = SHA, mode = "full") => `${marker(sha, mode)}\n**판정: REQUEST_CHANGES**\n\n> TL;DR: 고칠 것.\n`;
+const marker = renderMarker;
+const REVIEW = (sha = SHA, mode: "full" | "incremental" = "full") => `${marker(sha, mode)}\n**판정: REQUEST_CHANGES**\n\n> TL;DR: 고칠 것.\n`;
 
 type World = {
   cwd: string;

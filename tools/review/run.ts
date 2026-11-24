@@ -9,7 +9,7 @@ import { runDiagnostics } from "./diagnostics";
 import { buildPrompt } from "./prompt";
 import { buildReviewPayload, submitReview } from "./submit";
 import type { PreviousReview, Run } from "./types";
-import { OUT_DIR, OUT_FILES, parseComments, parseDecision, validateReview } from "./validate";
+import { OUT_DIR, OUT_FILES, validateReview } from "./validate";
 
 export const USAGE = [
   "사용법: npm run review -- <PR 번호> [--base <git ref>] [--incremental] [--submit] [--allow-fork]",
@@ -159,12 +159,12 @@ export function main(argv: string[], deps: Deps): number {
   if (patch.code !== 0) return fail(`git diff -U0 에 실패했다: ${patch.stderr.trim()}`);
 
   const touched = run("git", ["status", "--porcelain"]).stdout.trimEnd();
-  const errors = validateReview({ expected: { headSha: meta.headSha, mode }, body, decision: decisionRaw, comments: commentsRaw, addedLines: parseAddedLines(patch.stdout) });
+  const checked = validateReview({ expected: { headSha: meta.headSha, mode }, body, decision: decisionRaw, comments: commentsRaw, addedLines: parseAddedLines(patch.stdout) });
+  const errors = checked.ok ? [] : [...checked.errors];
   if (touched !== "") errors.push(`리뷰어가 ${CONTEXT_DIR}/ · ${OUT_DIR}/ 밖의 파일을 바꾸거나 만들었다:\n${touched}\n되돌린 뒤 다시 실행한다.`);
-  if (errors.length > 0) return fail(`리뷰 출력이 규칙에 맞지 않는다:\n${errors.map((e) => `- ${e}`).join("\n")}`);
+  if (!checked.ok || errors.length > 0) return fail(`리뷰 출력이 규칙에 맞지 않는다:\n${errors.map((e) => `- ${e}`).join("\n")}`);
 
-  const decision = parseDecision(decisionRaw);
-  if (decision === undefined) return fail(`${OUT_FILES.decision} 를 읽지 못했다.`);
+  const { decision, comments } = checked;
   deps.log(`판정: ${decision}`);
   deps.log(`본문: ${join(OUT_DIR, OUT_FILES.review)}`);
   if (!submit) {
@@ -174,7 +174,7 @@ export function main(argv: string[], deps: Deps): number {
 
   if (viewer === undefined) return fail("gh 로그인 계정을 알아내지 못해 게시하지 않았다. `gh auth status` 를 확인한다.");
   const payload = buildReviewPayload({
-    headSha: meta.headSha, body, decision, comments: commentsRaw === undefined ? [] : parseComments(commentsRaw),
+    headSha: meta.headSha, body, decision, comments,
     authorLogin: meta.authorLogin, viewerLogin: viewer,
   });
   const posted = submitReview(payload, pr, join(outDir, OUT_FILES.payload), run);

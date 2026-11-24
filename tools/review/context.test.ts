@@ -2,6 +2,7 @@ import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { renderMarker } from "./marker";
 import {
   CONTEXT_DIR, CONTEXT_FILES, buildContext, diffArgs, parseNumstat, parsePrMeta, parseReviews,
   pickPreviousReview, renderChangedFiles, renderPr,
@@ -104,7 +105,7 @@ describe("buildContext", () => {
 });
 
 describe("증분 보조", () => {
-  const marker = (sha: string) => `<!-- yk-review head_sha=${sha} mode=full -->\n**판정: APPROVE**`;
+  const marker = (sha: string) => `${renderMarker(sha, "full")}\n**판정: APPROVE**`;
   const rows = [
     { user: "me", body: marker("a".repeat(40)), html_url: "u1" },
     { user: "other", body: marker("b".repeat(40)), html_url: "u2" },

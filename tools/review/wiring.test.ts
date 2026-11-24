@@ -71,6 +71,6 @@ describe("지침 문서와 코드의 이름이 맞는다", () => {
     const body = `${lines[0] ?? ""}\n${lines[1] ?? ""}\n`;
     expect(lines[0]).toContain("yk-review");
     expect(lines[1]).toContain("판정");
-    expect(validateReview({ expected: { headSha: sha, mode: "full" }, body, decision: "APPROVE", comments: undefined, addedLines: new Map() })).toEqual([]);
+    expect(validateReview({ expected: { headSha: sha, mode: "full" }, body, decision: "APPROVE", comments: undefined, addedLines: new Map() })).toEqual({ ok: true, decision: "APPROVE", comments: [] });
   });
 });

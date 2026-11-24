@@ -2,11 +2,12 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { renderMarker } from "./marker";
 import { buildReviewPayload, OWN_PR_NOTE, submitReview } from "./submit";
 import type { Run } from "./types";
 
 const SHA = "c".repeat(40);
-const BODY = `<!-- yk-review head_sha=${SHA} mode=full -->\n**판정: REQUEST_CHANGES**\n\n> TL;DR: 고칠 것이 있다.\n`;
+const BODY = `${renderMarker(SHA, "full")}\n**판정: REQUEST_CHANGES**\n\n> TL;DR: 고칠 것이 있다.\n`;
 const comments = [{ path: "a.ts", line: 3, body: "여기" }];
 
 describe("buildReviewPayload", () => {
@@ -27,7 +28,7 @@ describe("buildReviewPayload", () => {
     expect(p.event).toBe("COMMENT");
     expect(OWN_PR_NOTE).toBe("> 내 PR이라 GitHub 리뷰 종류는 COMMENT 다. 판정은 아래 줄이 기준이다.");
     const lines = p.body.split("\n");
-    expect(lines[0]).toBe(`<!-- yk-review head_sha=${SHA} mode=full -->`);
+    expect(lines[0]).toBe(renderMarker(SHA, "full"));
     expect(lines[1]).toBe(OWN_PR_NOTE);
     expect(lines[2]).toBe("");
     expect(lines[3]).toBe("**판정: REQUEST_CHANGES**");

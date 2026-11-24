@@ -1,5 +1,6 @@
 import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseMarker } from "./marker";
 import type { PreviousReview, PrMeta, ReviewMode, Run } from "./types";
 
 export const CONTEXT_DIR = "review-context";
@@ -13,7 +14,6 @@ export const CONTEXT_FILES = {
   outputRules: "output-rules.md",
 } as const;
 
-const REVIEW_MARKER = /^<!-- yk-review head_sha=([0-9a-f]{40}) mode=(?:full|incremental) -->/;
 const EXCLUDE_LOCK = ":(exclude,glob)**/package-lock.json";
 
 export type FileStat = { path: string; added: number; deleted: number };
@@ -75,10 +75,11 @@ export function parseReviews(ndjson: string): ReviewRow[] {
 }
 
 export function pickPreviousReview(rows: ReviewRow[], viewer: string): PreviousReview | undefined {
-  const mine = rows.filter((r) => r.user === viewer && REVIEW_MARKER.test(r.body));
-  const last = mine.at(-1);
-  const sha = last === undefined ? undefined : REVIEW_MARKER.exec(last.body)?.[1];
-  return last === undefined || sha === undefined ? undefined : { body: last.body, headSha: sha, url: last.url };
+  const mine = rows.flatMap((r) => {
+    const marker = r.user === viewer ? parseMarker(r.body.split("\n")[0] ?? "") : undefined;
+    return marker === undefined ? [] : [{ body: r.body, headSha: marker.headSha, url: r.url }];
+  });
+  return mine.at(-1);
 }
 
 export type MetaResult = { ok: true; meta: PrMeta } | { ok: false; error: string };

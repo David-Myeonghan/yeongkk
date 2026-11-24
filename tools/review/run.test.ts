@@ -24,6 +24,7 @@ type World = {
   decision: string;
   comments?: string;
   reviews: string;
+  reviewsFail: boolean;
   silentReviewer: boolean;
   cross: boolean;
   baseMissing: boolean;
@@ -38,7 +39,7 @@ type World = {
 function setup(over: Partial<World> = {}) {
   const w: World = {
     cwd: mkdtempSync(join(tmpdir(), "yk-run-")), calls: [], out: [], err: [], localHead: SHA, author: "alice", viewer: "alice",
-    missing: [], review: REVIEW(), decision: "REQUEST_CHANGES\n", reviews: "", silentReviewer: false, cross: false, baseMissing: false, prevExists: true, prevIsAncestor: true,
+    missing: [], review: REVIEW(), decision: "REQUEST_CHANGES\n", reviews: "", reviewsFail: false, silentReviewer: false, cross: false, baseMissing: false, prevExists: true, prevIsAncestor: true,
     status: "", reviewerDirties: "", inputs: [], reviewerArgs: [], ...over,
   };
   const run: Run = (cmd, args, options) => {
@@ -55,7 +56,9 @@ function setup(over: Partial<World> = {}) {
     if (line.startsWith("git merge-base --is-ancestor")) return { code: w.prevIsAncestor ? 0 : 1, stdout: "", stderr: "" };
     if (line === "git status --porcelain") return ok(w.status);
     if (line === "gh api user --jq .login") return ok(`${w.viewer}\n`);
-    if (line.includes("pulls/7/reviews") && args.includes("--paginate")) return ok(w.reviews);
+    if (line.includes("pulls/7/reviews") && args.includes("--paginate")) {
+      return w.reviewsFail ? { code: 1, stdout: "", stderr: "API rate limit exceeded" } : ok(w.reviews);
+    }
     if (line.includes("pulls/7/reviews") && args.includes("POST")) return ok(JSON.stringify({ html_url: "https://example.test/review/1" }));
     if (cmd === "git" && args.includes("diff") && args.includes("--numstat")) return ok("1\t0\ta.ts\n");
     if (cmd === "git" && args.includes("diff") && args.includes("-U0")) return ok("diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -0,0 +1,5 @@\n+1\n+2\n+3\n+4\n+5\n");
@@ -224,9 +227,22 @@ describe("포크 PR", () => {
   });
 });
 
-describe("리뷰어가 작업 트리를 건드렸는가", () => {
-  it("리뷰 전후의 git status 가 같으면 통과한다", () => {
-    const { exec } = setup({ status: " M a.ts\n" });
+describe("작업 트리", () => {
+  it("시작할 때 커밋 안 된 변경이 있으면 경로를 알리고 아무것도 띄우지 않고 쓰지 않는다", () => {
+    const { w, exec } = setup({ status: " M a.ts\n?? b.ts\n" });
+    expect(exec(["7", "--submit"])).not.toBe(0);
+    const err = w.err.join("\n");
+    expect(err).toContain("a.ts");
+    expect(err).toContain("b.ts");
+    expect(err).toContain("커밋");
+    expect(w.calls.some((c) => c.startsWith("npm") || c.startsWith("claude"))).toBe(false);
+    expect(postCalls(w)).toEqual([]);
+    expect(existsSync(join(w.cwd, "review-context"))).toBe(false);
+    expect(existsSync(join(w.cwd, "review-out"))).toBe(false);
+  });
+
+  it("깨끗하게 시작해 깨끗하게 끝나면 통과한다", () => {
+    const { exec } = setup();
     expect(exec(["7"])).toBe(0);
   });
 
@@ -245,6 +261,24 @@ describe("--incremental", () => {
     const { w, exec } = setup();
     expect(exec(["7", "--incremental"])).not.toBe(0);
     expect(w.err.join("\n")).toContain("지난 리뷰");
+    expect(reviewerCalls(w)).toEqual([]);
+  });
+
+  it("지난 리뷰 조회가 gh 오류로 실패하면 없다고 하지 않고 stderr 를 보인다", () => {
+    const { w, exec } = setup({ reviewsFail: true });
+    expect(exec(["7", "--incremental"])).not.toBe(0);
+    const err = w.err.join("\n");
+    expect(err).toContain("지난 리뷰를 읽지 못했다");
+    expect(err).toContain("API rate limit exceeded");
+    expect(err).not.toContain("--incremental 없이");
+    expect(reviewerCalls(w)).toEqual([]);
+  });
+
+  it("지난 리뷰의 head 가 지금 head 와 같으면 새 커밋이 없다고 멈춘다", () => {
+    const { w, exec } = setup({ reviews: row("alice", SHA, "u") });
+    expect(exec(["7", "--incremental"])).not.toBe(0);
+    expect(w.err.join("\n")).toContain("새 커밋이 없다");
+    expect(w.calls.some((c) => c.startsWith("npm"))).toBe(false);
     expect(reviewerCalls(w)).toEqual([]);
   });
 

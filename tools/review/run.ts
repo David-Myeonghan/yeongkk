@@ -9,7 +9,7 @@ import { runDiagnostics } from "./diagnostics";
 import { buildPrompt } from "./prompt";
 import { buildReviewPayload, submitReview } from "./submit";
 import type { PreviousReview, Run } from "./types";
-import { OUT_DIR, OUT_FILES, parseComments, changedPaths, parseDecision, validateReview } from "./validate";
+import { OUT_DIR, OUT_FILES, parseComments, parseDecision, validateReview } from "./validate";
 
 export const USAGE = [
   "사용법: npm run review -- <PR 번호> [--base <git ref>] [--incremental] [--submit] [--allow-fork]",
@@ -56,11 +56,13 @@ function readIfExists(path: string): string | undefined {
   return existsSync(path) ? readFileSync(path, "utf8") : undefined;
 }
 
-function fetchPreviousReview(deps: Deps, pr: number, viewer: string): PreviousReview | undefined {
+type PreviousLookup = { ok: true; review: PreviousReview | undefined } | { ok: false; error: string };
+
+function fetchPreviousReview(deps: Deps, pr: number, viewer: string): PreviousLookup {
   const jq = ".[] | {user: .user.login, body: .body, html_url: .html_url}";
   const result = deps.run("gh", ["api", `repos/{owner}/{repo}/pulls/${pr}/reviews`, "--paginate", "--jq", jq]);
-  if (result.code !== 0) return undefined;
-  return pickPreviousReview(parseReviews(result.stdout), viewer);
+  if (result.code !== 0) return { ok: false, error: `지난 리뷰를 읽지 못했다: ${result.stderr.trim()}` };
+  return { ok: true, review: pickPreviousReview(parseReviews(result.stdout), viewer) };
 }
 
 function viewerLogin(deps: Deps): string | undefined {
@@ -95,6 +97,11 @@ export function main(argv: string[], deps: Deps): number {
   if (head !== meta.headSha) {
     return fail(`로컬 HEAD(${head.slice(0, 12)})가 PR #${pr} 의 head(${meta.headSha.slice(0, 12)})와 다르다. PR 브랜치(${meta.headRefName})를 체크아웃하고 최신으로 받은 뒤 다시 실행한다.`);
   }
+  const dirty = run("git", ["status", "--porcelain"]);
+  if (dirty.code !== 0) return fail(`git status 에 실패했다: ${dirty.stderr.trim()}`);
+  if (dirty.stdout.trim() !== "") {
+    return fail(`커밋 안 된 변경이 있다. 검사와 리뷰어는 작업 트리를 읽는데 게시는 head 커밋의 리뷰로 올라가므로, 먼저 커밋하거나 버린 뒤 다시 실행한다:\n${dirty.stdout.trimEnd()}`);
+  }
   const base = parsed.args.base ?? `origin/${meta.baseRefName}`;
   const baseResult = run("git", ["rev-parse", "--verify", `${base}^{commit}`]);
   const baseSha = baseResult.stdout.trim();
@@ -108,8 +115,11 @@ export function main(argv: string[], deps: Deps): number {
 
   let previous: PreviousReview | undefined;
   if (incremental && viewer !== undefined) {
-    previous = fetchPreviousReview(deps, pr, viewer);
+    const lookup = fetchPreviousReview(deps, pr, viewer);
+    if (!lookup.ok) return fail(lookup.error);
+    previous = lookup.review;
     if (previous === undefined) return fail(`증분 리뷰를 할 수 없다. PR #${pr} 에 ${viewer} 가 올린 yk-review 표지의 지난 리뷰가 없다. --incremental 없이 실행한다.`);
+    if (previous.headSha === meta.headSha) return fail(`지난 리뷰의 head 가 지금 head(${meta.headSha.slice(0, 12)})와 같다. 새 커밋이 없다.`);
     const exists = run("git", ["cat-file", "-e", `${previous.headSha}^{commit}`]).code === 0;
     const ancestor = exists && run("git", ["merge-base", "--is-ancestor", previous.headSha, meta.headSha]).code === 0;
     if (!ancestor) {
@@ -134,7 +144,6 @@ export function main(argv: string[], deps: Deps): number {
     ? buildPrompt({ guide, prNumber: pr, headSha: meta.headSha, mode: "full" })
     : buildPrompt({ guide, prNumber: pr, headSha: meta.headSha, mode: "incremental", previousHeadSha: previous.headSha });
 
-  const statusBefore = run("git", ["status", "--porcelain"]).stdout;
   deps.log(`리뷰어를 띄우는 중(PR #${pr}, ${mode})...`);
   const reviewer = run("claude", REVIEWER_ARGS, { input: prompt });
   writeFileSync(join(outDir, OUT_FILES.execution), reviewer.stdout);
@@ -149,9 +158,9 @@ export function main(argv: string[], deps: Deps): number {
   const patch = run("git", diffArgs(base, meta.headSha, ["-U0"]));
   if (patch.code !== 0) return fail(`git diff -U0 에 실패했다: ${patch.stderr.trim()}`);
 
-  const touched = changedPaths(statusBefore, run("git", ["status", "--porcelain"]).stdout);
+  const touched = run("git", ["status", "--porcelain"]).stdout.trimEnd();
   const errors = validateReview({ expected: { headSha: meta.headSha, mode }, body, decision: decisionRaw, comments: commentsRaw, addedLines: parseAddedLines(patch.stdout) });
-  if (touched.length > 0) errors.push(`리뷰어가 ${CONTEXT_DIR}/ · ${OUT_DIR}/ 밖의 파일을 바꾸거나 만들었다: ${touched.join(", ")}. 되돌린 뒤 다시 실행한다.`);
+  if (touched !== "") errors.push(`리뷰어가 ${CONTEXT_DIR}/ · ${OUT_DIR}/ 밖의 파일을 바꾸거나 만들었다:\n${touched}\n되돌린 뒤 다시 실행한다.`);
   if (errors.length > 0) return fail(`리뷰 출력이 규칙에 맞지 않는다:\n${errors.map((e) => `- ${e}`).join("\n")}`);
 
   const decision = parseDecision(decisionRaw);
@@ -163,9 +172,10 @@ export function main(argv: string[], deps: Deps): number {
     return 0;
   }
 
+  if (viewer === undefined) return fail("gh 로그인 계정을 알아내지 못해 게시하지 않았다. `gh auth status` 를 확인한다.");
   const payload = buildReviewPayload({
     headSha: meta.headSha, body, decision, comments: commentsRaw === undefined ? [] : parseComments(commentsRaw),
-    authorLogin: meta.authorLogin, viewerLogin: viewer ?? "",
+    authorLogin: meta.authorLogin, viewerLogin: viewer,
   });
   const posted = submitReview(payload, pr, join(outDir, OUT_FILES.payload), run);
   if (!posted.ok) return fail(posted.error);

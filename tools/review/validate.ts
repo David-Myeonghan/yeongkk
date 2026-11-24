@@ -107,10 +107,3 @@ export function parseComments(raw: string): Array<{ path: string; line: number; 
       : [],
   );
 }
-
-export function changedPaths(before: string, after: string): string[] {
-  const lines = (text: string) => text.split("\n").filter((line) => line !== "");
-  const was = new Set(lines(before));
-  const is = new Set(lines(after));
-  return [...lines(after).filter((l) => !was.has(l)), ...lines(before).filter((l) => !is.has(l))];
-}

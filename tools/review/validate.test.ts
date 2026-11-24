@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BODY_CAP, changedPaths, validateReview, type ReviewOutput } from "./validate";
+import { BODY_CAP, validateReview, type ReviewOutput } from "./validate";
 
 const SHA = "a".repeat(40);
 const marker = (sha = SHA, mode = "full") => `<!-- yk-review head_sha=${sha} mode=${mode} -->`;
@@ -126,17 +126,5 @@ describe("validateReview", () => {
     const errors = validateReview({ ...good(), comments });
     expect(errors.length).toBeGreaterThan(0);
     expect(errors[0]).toContain("comments.json");
-  });
-});
-
-describe("changedPaths", () => {
-  it("전과 후의 git status 가 같으면 비어 있다", () => {
-    expect(changedPaths(" M a.ts\n", " M a.ts\n")).toEqual([]);
-  });
-  it("새로 생기거나 바뀐 줄만 돌려준다", () => {
-    expect(changedPaths(" M a.ts\n", " M a.ts\n?? b.ts\nM  c.ts\n")).toEqual(["?? b.ts", "M  c.ts"]);
-  });
-  it("전에 있던 것이 사라져도 알린다", () => {
-    expect(changedPaths(" M a.ts\n", "")).toEqual([" M a.ts"]);
   });
 });

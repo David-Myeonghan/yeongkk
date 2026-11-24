@@ -32,9 +32,10 @@ test("version 0 인 DEFAULT_CONFIG 그대로는 스키마가 거부한다", () =
   expect(DEFAULT_CONFIG.version).toBe(0);
   expect(checkConfig(cfg(DEFAULT_CONFIG)).length).toBeGreaterThan(0);
 });
-test("실제 config/remote/ko-KR.json 이 통과한다", () => {
-  const [c] = loadConfigs(process.cwd()).filter(x => x.fileName === "ko-KR.json");
-  expect(checkConfig(c)).toEqual([]);
+test("실제 config/remote/ 의 모든 파일이 통과한다", () => {
+  const all = loadConfigs(process.cwd());
+  expect(all.length).toBeGreaterThan(0);
+  expect(all.flatMap(checkConfig)).toEqual([]);
 });
 test("스키마에 안 맞으면 형식 문제", () => {
   const ps = checkConfig(cfg({ ...good(), version: 0 }));
@@ -107,7 +108,7 @@ test("스키마에 안 맞는 설정이면 묶기가 던진다", () => {
   expect(() => writeBuild(root, join(root, "dist"))).toThrow();
 });
 
-test("설정만 틀려도 단어 묶기 실패는 보이고, 설정 오류는 한 번만", () => {
+test("설정만 틀리면 묶기 문제는 없고 설정 오류는 한 번만 보인다", () => {
   const root = repo({
     "config/remote/ko-KR.json": JSON.stringify({ ...good(), version: 0 }),
     "words/ko-KR/gatsaeng.json": JSON.stringify(sampleWord()),

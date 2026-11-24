@@ -12,7 +12,7 @@
     {
       "binding": "DB",
       "database_name": "yeongkk",
-      "database_id": "00000000-0000-0000-0000-000000000000", // F2 Step 2에서 진짜 값으로 바꾼다
+      "database_id": "00000000-0000-0000-0000-000000000000", // 배포 워크플로(d1-create)로 D1 을 만든 뒤 진짜 값으로 바꾼다
       "migrations_dir": "migrations"
     }
   ],

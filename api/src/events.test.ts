@@ -136,6 +136,17 @@ describe("POST /api/events", () => {
     expect(await rows()).toHaveLength(0);
   });
 
+  it("정확히 16384 바이트는 받고 16385 바이트는 413 이다", async () => {
+    const sized = (bytes: number) => {
+      const shell = JSON.stringify({ ...base, events: [], pad: "" });
+      const body = JSON.stringify({ ...base, events: [], pad: "z".repeat(bytes - new TextEncoder().encode(shell).length) });
+      expect(new TextEncoder().encode(body).length).toBe(bytes);
+      return body;
+    };
+    expect((await post(sized(16384))).status).toBe(204);
+    expect((await post(sized(16385))).status).toBe(413);
+  });
+
   it("한글 본문의 크기는 UTF-8 바이트로 잰다", async () => {
     const body = JSON.stringify({ ...base, events: [], pad: "가".repeat(6000) });
     expect(body.length).toBeLessThan(16384);

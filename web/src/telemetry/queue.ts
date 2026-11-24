@@ -1,4 +1,5 @@
 import type { EventName } from "@yk/quiz-core/events";
+import { isRecord } from "../data/guards";
 import type { KeyValue } from "../state/progress";
 
 export type PropValue = string | number | boolean;
@@ -13,7 +14,6 @@ const MAX_QUEUED = 200;
 const MAX_PER_REQUEST = 50;
 const MAX_BYTES = 12_000;
 
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const isQueued = (v: unknown): v is QueuedEvent =>
   isRecord(v) && typeof v.name === "string" && typeof v.at === "number" && Number.isFinite(v.at) && (v.props === undefined || isRecord(v.props));
 

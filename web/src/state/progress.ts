@@ -1,3 +1,5 @@
+import { isRecord } from "../data/guards";
+
 export interface KeyValue {
   get(key: string): string | null;
   set(key: string, value: string): void;
@@ -15,7 +17,6 @@ export const PROGRESS_KEY = "yk.progress.v1";
 const MAX_AGE_MS = 6 * 3_600_000;
 const MAX_FUTURE_MS = 5 * 60_000;
 
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const isId = (v: unknown): v is string => typeof v === "string" && v.length > 0;
 
 function toProgress(raw: unknown): Progress | null {

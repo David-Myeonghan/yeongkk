@@ -1,23 +1,21 @@
 import { AppScreen } from "@stackflow/plugin-basic-ui";
 import { useFlow, type ActivityComponentType } from "@stackflow/react";
-import { share, type ShareData, type ShareResult } from "@yk/bridge/share";
+import { share, type ShareResult } from "@yk/bridge/share";
 import { RESULT_COPY, resultTier, score } from "@yk/quiz-core/score";
 import { useEffect, useRef, useState } from "react";
 import { match } from "ts-pattern";
 import { visuallyHidden } from "../app/a11y.css";
 import { useAppData } from "../app/AppData";
+import { beginNewRound } from "../app/newRound";
 import { ReportForm } from "../app/ReportForm";
-import { rounds, track } from "../app/services";
+import { track } from "../app/services";
 import { quizAppBar, useBehind, useHeadingFocus, useQuizRoute, type QuizView } from "../app/screen";
 import { getBridge } from "../platform/bridge";
 import { shareEnvFrom } from "../platform/shareEnv";
-import { shareDataFor } from "../platform/shareData";
-import { newRoundId } from "../state/ids";
+import { shareDataFor, type ResultShareData } from "../platform/shareData";
 import { markRoundCompleted } from "../state/completed";
-import { clearProgress, saveProgress } from "../state/progress";
-import { startRound } from "../state/session";
+import { clearProgress } from "../state/progress";
 import { roundExperimentProps } from "../state/variants";
-import { localDate } from "../state/today";
 import * as q from "../styles/quiz.css";
 import * as ui from "../styles/screen.css";
 import { vars } from "../styles/theme.css";
@@ -28,13 +26,13 @@ const MANUAL_TEXT_HINT = "글을 길게 눌러 복사해 주세요";
 
 type ShareNote = { kind: "copied" } | { kind: "manual"; hint: string; copyable: string } | null;
 
-function manualNote(data: ShareData): ShareNote {
+function manualNote(data: ResultShareData): ShareNote {
   return data.url
     ? { kind: "manual", hint: MANUAL_HINT, copyable: data.url }
-    : { kind: "manual", hint: MANUAL_TEXT_HINT, copyable: data.text ?? "" };
+    : { kind: "manual", hint: MANUAL_TEXT_HINT, copyable: data.text };
 }
 
-async function shareResult(data: ShareData): Promise<{ note: ShareNote; result: ShareResult }> {
+async function shareResult(data: ResultShareData): Promise<{ note: ShareNote; result: ShareResult }> {
   try {
     const result = await share(getBridge(), data, shareEnvFrom(navigator));
     const note = match(result.via)
@@ -101,10 +99,7 @@ function ResultBody({ view, leave }: { view: QuizView; leave(fn: () => void): vo
   const again = () =>
     leave(() => {
       clearProgress(app.store);
-      const now = Date.now();
-      const progress = startRound(view.words, { today: localDate(new Date(now)), roundId: newRoundId(), now });
-      saveProgress(app.store, progress);
-      rounds.begin({ store: app.store, progress, words: view.words, resumed: false });
+      beginNewRound(app.store, view.words);
       replace("Question", { index: "0" });
     });
 

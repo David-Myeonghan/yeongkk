@@ -1,10 +1,10 @@
-/* global console, process, setTimeout, URL, localStorage, document */
 // 이미 빌드된 web/dist 를 vite preview 로 띄우고 화면별 PNG 를 web/e2e/__screens__/ 에 남긴다.
-// 사용: npm run build -w web && node web/e2e/screenshots.mjs
+// 사용: npm run build -w web && npm run screens -w web
 import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { chromium } from "@playwright/test";
-import { startPreview, stubNetwork, words } from "./support.mjs";
+import { chromium, type Browser, type Page, type ViewportSize } from "@playwright/test";
+import type { Progress } from "../src/state/progress";
+import { startPreview, stubNetwork, words } from "./support";
 
 const outDir = fileURLToPath(new URL("./__screens__/", import.meta.url));
 const KEY = "yk.progress.v1";
@@ -13,12 +13,13 @@ const PHONE = { width: 390, height: 844 };
 const SMALL = { width: 320, height: 568 };
 const SETTLE_MS = 700;
 
-const apiCalls = [];
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const apiCalls: string[] = [];
+type ColorScheme = "light" | "dark";
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 const NEW_FIRST = ["god-saeng", ...words.map((w) => w.id).filter((id) => id !== "god-saeng").slice(0, 9)];
 
-function progress(roundId, wordIds, answered) {
+function progress(roundId: string, wordIds: string[], answered: number): Progress {
   return {
     roundId,
     wordIds,
@@ -27,7 +28,14 @@ function progress(roundId, wordIds, answered) {
   };
 }
 
-async function openPage(browser, base, { colorScheme, viewport, failWords = false, initScript }) {
+interface OpenOptions {
+  colorScheme: ColorScheme;
+  viewport: ViewportSize;
+  failWords?: boolean;
+  initScript?: string;
+}
+
+async function openPage(browser: Browser, base: string, { colorScheme, viewport, failWords = false, initScript }: OpenOptions) {
   const context = await browser.newContext({
     viewport,
     colorScheme,
@@ -45,22 +53,22 @@ async function openPage(browser, base, { colorScheme, viewport, failWords = fals
   return { context, page };
 }
 
-async function withProgress(page, base, value) {
+async function withProgress(page: Page, base: string, value: Progress) {
   await page.evaluate(([key, json]) => localStorage.setItem(key, json), [KEY, JSON.stringify(value)]);
   await page.goto(base);
 }
 
-async function resume(page) {
+async function resume(page: Page) {
   await page.getByRole("button", { name: /이어 풀기/ }).click();
   await sleep(SETTLE_MS);
 }
 
-async function shot(page, name) {
+async function shot(page: Page, name: string) {
   await page.screenshot({ path: `${outDir}${name}.png` });
   console.log(`saved ${name}.png`);
 }
 
-async function findNewMeaningRound(page, base) {
+async function findNewMeaningRound(page: Page, base: string) {
   for (let k = 0; k < 40; k++) {
     const value = progress(`shot-${k}`, NEW_FIRST, 0);
     await withProgress(page, base, value);
@@ -71,8 +79,8 @@ async function findNewMeaningRound(page, base) {
   throw new Error("NEW + 뜻 고르기 문제를 만드는 roundId 를 못 찾았어요");
 }
 
-async function shootPhone(browser, base, colorScheme) {
-  const s = (name) => `${name}-${colorScheme}`;
+async function shootPhone(browser: Browser, base: string, colorScheme: ColorScheme) {
+  const s = (name: string) => `${name}-${colorScheme}`;
 
   {
     const { context, page } = await openPage(browser, base, { colorScheme, viewport: PHONE });
@@ -136,7 +144,7 @@ const NO_SHARE_NO_COPY = `
   Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true });
 `;
 
-async function shootShare(browser, base) {
+async function shootShare(browser: Browser, base: string) {
   for (const [name, initScript] of [
     ["result-share-copied-light", NO_SHARE_COPY_OK],
     ["result-share-manual-light", NO_SHARE_NO_COPY],
@@ -156,7 +164,7 @@ async function shootShare(browser, base) {
   }
 }
 
-async function shootSmall(browser, base) {
+async function shootSmall(browser: Browser, base: string) {
   const { context, page } = await openPage(browser, base, { colorScheme: "light", viewport: SMALL });
   await page.getByRole("button", { name: "시작" }).waitFor();
   await findNewMeaningRound(page, base);
@@ -170,7 +178,7 @@ await mkdir(outDir, { recursive: true });
 const preview = await startPreview();
 const base = preview.base;
 
-let browser;
+let browser: Browser | undefined;
 try {
   browser = await chromium.launch();
   await shootPhone(browser, base, "light");

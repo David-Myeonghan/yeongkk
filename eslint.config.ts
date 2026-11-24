@@ -1,6 +1,6 @@
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
-import noSwitchOnKind from "./tools/eslint-rules/no-switch-on-kind.js";
+import noSwitchOnKind from "./tools/eslint-rules/no-switch-on-kind";
 
 export default tseslint.config(
   {

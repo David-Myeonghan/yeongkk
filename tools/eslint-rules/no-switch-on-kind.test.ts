@@ -1,7 +1,7 @@
 import { RuleTester } from "eslint";
 import tseslint from "typescript-eslint";
 import { describe, it } from "vitest";
-import rule from "./no-switch-on-kind.js";
+import rule from "./no-switch-on-kind";
 
 RuleTester.describe = describe;
 RuleTester.it = it;

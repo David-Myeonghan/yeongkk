@@ -1,12 +1,10 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { dirs, loadWords } from "./load";
+import { dirs, loadWords, LOCALE_DIR } from "./load";
 import { checkFormat } from "./checks";
 import { checkConfig, loadConfigs } from "./config";
 import { buildLocale } from "./build";
 import type { Word } from "./types";
-
-const LOCALE = /^[a-z]{2}-[A-Z]{2}$/;
 
 export function writeBuild(root: string, outDir: string, opts: { withConfigs?: boolean } = {}): string[] {
   const ws = loadWords(root);
@@ -18,7 +16,7 @@ export function writeBuild(root: string, outDir: string, opts: { withConfigs?: b
   const words = ws.map(w => w.data as Word);
   mkdirSync(outDir, { recursive: true });
   const written: string[] = [];
-  const locales = new Set([...ws.map(w => w.folderLocale), ...dirs(join(root, "words")).filter(d => LOCALE.test(d))]);
+  const locales = new Set([...ws.map(w => w.folderLocale), ...dirs(join(root, "words")).filter(d => LOCALE_DIR.test(d))]);
   for (const locale of locales) {
     const f = join(outDir, `words.${locale}.json`);
     writeFileSync(f, JSON.stringify(buildLocale(words, locale)));

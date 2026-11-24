@@ -12,7 +12,7 @@
 ## 폴더
 
 - `words/` 게시 단어. PR로만 추가한다.
-- `config/` 금칙어(`banned.txt`)와 원격 설정(`remote/ko-KR.json`).
+- `config/` 금칙어(`ko-KR/banned.txt`)와 원격 설정(`remote/ko-KR.json`).
 - `schema/` 단어와 설정의 JSON 스키마.
 - `registry/` 단어 등록 검사 · 묶기 · `add-word`(TypeScript).
 - `quiz-core/` 한 판 구성 · 문제 · 채점 · 실험 배정. 화면 없는 순수 로직.
@@ -37,6 +37,8 @@ npx wrangler d1 migrations apply yeongkk --local
 npx wrangler dev --port 8787
 ```
 
+브라우저에서 `http://localhost:8787`을 열면 퀴즈가 뜬다. `cp`가 필요한 것은 웹이 같은 주소에서 `/words.ko-KR.json`과 `/config.ko-KR.json`을 받기 때문이다(`web/src/data/loadWords.ts`).
+
 ## 테스트
 
 ```
@@ -45,6 +47,8 @@ npm test -w web
 npm test -w api
 npm run lint
 npm run typecheck
+npm run typecheck -w web
+npm run typecheck -w api
 ```
 
 PR 리뷰는 `npm run review -- <PR 번호>` — 자세한 것은 `tools/review/README.md`.

@@ -2,8 +2,10 @@ import { match } from "ts-pattern";
 import {
   BridgeError,
   PROTOCOL_VERSION,
+  isText,
   parseMessage,
   response,
+  toObject,
   type HostInfo,
   type RequestMessage,
 } from "./protocol";
@@ -28,14 +30,8 @@ function failureCode(e: unknown): string {
 }
 
 function rejectedRequestId(raw: string): string | null {
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
-    const { kind, id } = parsed as Record<string, unknown>;
-    return kind === "request" && typeof id === "string" && id.length > 0 ? id : null;
-  } catch {
-    return null;
-  }
+  const parsed = toObject(raw);
+  return parsed !== null && parsed.kind === "request" && isText(parsed.id) ? parsed.id : null;
 }
 
 export interface NativeHost {

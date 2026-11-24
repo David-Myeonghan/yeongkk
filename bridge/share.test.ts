@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { BridgeError, PROTOCOL_VERSION } from "./protocol";
 import { share } from "./share";
-import { createWebBridge, type WebBridge } from "./web";
+import { createWebBridge } from "./web";
 
 const card = { title: "영크크", text: "10점", url: "https://yeongkk.example/r/1" };
 const info = { protocol: PROTOCOL_VERSION, appVersion: "1.0.0", platform: "ios", capabilities: { share: 1 } };
@@ -32,6 +32,17 @@ describe("share 대신하기 가지", () => {
     expect(webShare).not.toHaveBeenCalled();
   });
 
+  it.each([{ completed: "no" }, 7, "yes", null, [true]])("앱이 %j 로 답하면 완료로 본다", async (answer) => {
+    const bridge = createWebBridge({
+      injected: info,
+      post: (raw) => {
+        const id = (JSON.parse(raw) as { id: string }).id;
+        queueMicrotask(() => bridge.receive({ v: 1, kind: "response", id, ok: true, result: answer }));
+      },
+    });
+    expect(await share(bridge, card, {})).toEqual({ via: "native", completed: true });
+  });
+
   it("앱 호출이 BridgeError 가 아닌 것을 던져도 다음 방법으로 넘어간다", async () => {
     const bridge = { ...browser(), call: () => Promise.reject(new TypeError("odd")) };
     const webShare = vi.fn(async () => undefined);
@@ -45,7 +56,7 @@ describe("share 대신하기 가지", () => {
 
   it("앱 호출은 60초까지 기다린다고 요청한다", async () => {
     const call = vi.fn(async () => ({ completed: true }));
-    await share({ ...browser(), call: call as unknown as WebBridge["call"] }, card, {});
+    await share({ ...browser(), call }, card, {});
     expect(call).toHaveBeenCalledWith("share", card, { timeoutMs: 60000 });
   });
 

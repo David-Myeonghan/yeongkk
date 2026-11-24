@@ -37,6 +37,7 @@ describe("parseWord", () => {
     for (const v of [
       "kakao.com/o/x", "bit.ly/x", "naver.com.", "see naver.com now", "naver.com?q=1", "naver.com#a",
       "naver.com:8080", "naver.com,", "naver.com!", "(naver.com)", "a.xn--p1ai", "NAVER.COM",
+      "naver.com으로", "kakao.com에서", "bit.ly로", "naver.com_",
     ]) {
       expect(parseWord(v), v).toBeNull();
     }

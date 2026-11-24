@@ -1,15 +1,12 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import Ajv2020 from "ajv/dist/2020";
 import type { RemoteConfig } from "../quiz-core/config";
-import type { LoadedConfig, Problem } from "./types";
+import { P, type LoadedConfig, type Problem } from "./types";
+import { schemaValidator } from "./schema";
 
 export type { LoadedConfig };
 
-const schema = JSON.parse(readFileSync(new URL("../schema/config.schema.json", import.meta.url), "utf8"));
-const compiled = new Ajv2020({ allErrors: true }).compile(schema);
-
-const P = (file: string, rule: string, message: string): Problem => ({ file, rule, message });
+const validateConfigSchema = schemaValidator("config.schema.json");
 const LOCALE_FILE = /^[a-z]{2}-[A-Z]{2}\.json$/;
 
 export function loadConfigs(root: string): LoadedConfig[] {
@@ -26,8 +23,9 @@ export function checkConfig(c: LoadedConfig): Problem[] {
   if (c.parseError !== undefined) return [P(c.path, "형식", `JSON 아님: ${c.parseError}`)];
   const out: Problem[] = [];
   if (!LOCALE_FILE.test(c.fileName)) out.push(P(c.path, "형식", "파일 이름은 <로케일>.json (예: ko-KR.json)"));
-  if (!compiled(c.data)) {
-    for (const e of compiled.errors ?? []) out.push(P(c.path, "형식", `${e.instancePath || "/"} ${e.message ?? ""} ${JSON.stringify(e.params)}`));
+  const r = validateConfigSchema(c.data);
+  if (!r.ok) {
+    for (const e of r.errors) out.push(P(c.path, "형식", e));
     return out;
   }
   const cfg = c.data as RemoteConfig;
@@ -38,6 +36,9 @@ export function checkConfig(c: LoadedConfig): Problem[] {
     const names = new Set<string>();
     for (const v of exp.variants) {
       if (names.has(v.name)) out.push(P(c.path, "실험", `실험 ${exp.id} 변형 이름 중복: ${v.name}`)); else names.add(v.name);
+    }
+    if (exp.id === "funny-wrong" && !(names.size === 2 && names.has("on") && names.has("off"))) {
+      out.push(P(c.path, "실험", `실험 funny-wrong 의 변형 이름은 "on" 과 "off" 두 개여야 해요 (앱이 이 이름을 그대로 써요): ${[...names].join(", ")}`));
     }
   }
   return out;

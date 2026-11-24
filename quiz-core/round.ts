@@ -10,6 +10,7 @@ export interface RoundOptions {
 }
 
 const DAY_MS = 86_400_000;
+const NEW_WITHIN_DAYS = 7;
 
 function utcDay(date: string): number | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
@@ -30,7 +31,7 @@ function isNewOn(word: Word, today: number, withinDays: number): boolean {
   return age >= 0 && age <= withinDays;
 }
 
-export function isNew(word: Word, today: string, withinDays = 7): boolean {
+export function isNew(word: Word, today: string, withinDays = NEW_WITHIN_DAYS): boolean {
   const now = utcDay(today);
   return now !== null && isNewOn(word, now, withinDays);
 }
@@ -39,7 +40,7 @@ export function pickRound(words: Word[], opts: RoundOptions): Word[] {
   const { rng } = opts;
   const size = Math.max(0, Math.floor(opts.size ?? 10));
   const newCount = Math.max(0, Math.floor(opts.newCount ?? 3));
-  const withinDays = opts.newWithinDays ?? 7;
+  const withinDays = opts.newWithinDays ?? NEW_WITHIN_DAYS;
   const today = utcDay(opts.today);
   if (today === null) throw new Error(`pickRound: today must be YYYY-MM-DD, got ${JSON.stringify(opts.today)}`);
 

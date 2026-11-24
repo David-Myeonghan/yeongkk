@@ -6,17 +6,15 @@ import { useEffect, useRef, useState } from "react";
 import { match } from "ts-pattern";
 import { visuallyHidden } from "../app/a11y.css";
 import { useAppData } from "../app/AppData";
+import { beginNewRound } from "../app/newRound";
 import { ReportForm } from "../app/ReportForm";
-import { rounds, track } from "../app/services";
+import { track } from "../app/services";
 import { quizAppBar, useBehind, useHeadingFocus, useQuizRoute, type QuizView } from "../app/screen";
 import { getBridge } from "../platform/bridge";
 import { shareEnvFrom } from "../platform/shareEnv";
 import { shareDataFor, type ResultShareData } from "../platform/shareData";
-import { newRoundId } from "../state/ids";
 import { markRoundCompleted } from "../state/completed";
-import { clearProgress, saveProgress } from "../state/progress";
-import { startRound } from "../state/session";
-import { localDate } from "../state/today";
+import { clearProgress } from "../state/progress";
 import * as q from "../styles/quiz.css";
 import * as ui from "../styles/screen.css";
 import { vars } from "../styles/theme.css";
@@ -100,10 +98,7 @@ function ResultBody({ view, leave }: { view: QuizView; leave(fn: () => void): vo
   const again = () =>
     leave(() => {
       clearProgress(app.store);
-      const now = Date.now();
-      const progress = startRound(view.words, { today: localDate(new Date(now)), roundId: newRoundId(), now });
-      saveProgress(app.store, progress);
-      rounds.begin({ store: app.store, progress, words: view.words, resumed: false });
+      beginNewRound(app.store, view.words);
       replace("Question", { index: "0" });
     });
 

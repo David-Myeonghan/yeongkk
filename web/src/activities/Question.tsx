@@ -3,13 +3,12 @@ import { useActivity, useFlow, type ActivityComponentType } from "@stackflow/rea
 import { isNew } from "@yk/quiz-core/round";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppData } from "../app/AppData";
-import { Icon, quizAppBar, useBehind, useHeadingFocus, useQuizRoute, type QuizView } from "../app/screen";
+import { Icon, quizAppBar, useBehind, useHeadingFocus, useQuestion, useQuizRoute, type QuizView } from "../app/screen";
 import { track } from "../app/services";
 import { getBridge } from "../platform/bridge";
 import { hapticForAnswer } from "../platform/haptics";
 import { saveProgress } from "../state/progress";
-import { answer, questionAt, roundDay } from "../state/session";
-import { funnyWrongOn } from "../state/variants";
+import { answer, roundDay } from "../state/session";
 import * as q from "../styles/quiz.css";
 import * as ui from "../styles/screen.css";
 import { vars } from "../styles/theme.css";
@@ -35,10 +34,7 @@ function QuestionBody(props: { view: QuizView; index: number; restart(): void; l
   const { isTop } = useActivity();
   const headingRef = useHeadingFocus<HTMLHeadingElement>();
   const behind = useBehind();
-  const question = useMemo(
-    () => questionAt(view.progress, view.words, index, { funnyWrong: funnyWrongOn(app.store, view.progress.roundId) }),
-    [app.store, view, index],
-  );
+  const question = useQuestion(view, index);
   const word = useMemo(() => view.words.find((w) => w.id === question?.wordId), [view.words, question]);
   const [picked, setPicked] = useState<number | null>(null);
   const pickedRef = useRef(false);

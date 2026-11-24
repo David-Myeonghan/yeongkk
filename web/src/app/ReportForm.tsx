@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { match } from "ts-pattern";
+import { LOCALE } from "../data/locale";
 import * as q from "../styles/quiz.css";
 import { submitReport, type ReportResult } from "../telemetry/report";
 import { visuallyHidden } from "./a11y.css";
@@ -7,7 +8,6 @@ import { useAppData } from "./AppData";
 import { shouldBlockEnter } from "./imeEnter";
 import { anonId } from "./services";
 
-const LOCALE = "ko-KR";
 const MAX_WORD = 20;
 
 const messageFor = (result: ReportResult) =>

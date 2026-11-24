@@ -1,3 +1,4 @@
+import { isRecord } from "../data/guards";
 import type { KeyValue } from "./progress";
 
 export const ROUND_FLAGS_KEY = "yk.round-flags.v1";
@@ -13,10 +14,9 @@ export function loadRoundFlags(store: KeyValue, roundId: string): RoundFlags | n
     const text = store.get(ROUND_FLAGS_KEY);
     if (text === null) return null;
     const raw: unknown = JSON.parse(text);
-    if (typeof raw !== "object" || raw === null) return null;
-    const flags = raw as Record<string, unknown>;
-    if (flags.roundId !== roundId || typeof flags.funnyWrong !== "boolean") return null;
-    return { roundId, funnyWrong: flags.funnyWrong, variant: typeof flags.variant === "string" ? flags.variant : null };
+    if (!isRecord(raw)) return null;
+    if (raw.roundId !== roundId || typeof raw.funnyWrong !== "boolean") return null;
+    return { roundId, funnyWrong: raw.funnyWrong, variant: typeof raw.variant === "string" ? raw.variant : null };
   } catch {
     return null;
   }

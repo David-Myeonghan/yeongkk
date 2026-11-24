@@ -1,9 +1,10 @@
 import type { Word } from "@yk/quiz-core/types";
 import { useActivity, useFlow } from "@stackflow/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { match } from "ts-pattern";
 import { clearProgress, loadProgress, type Progress } from "../state/progress";
-import { parseIndex, routeFor, type QuizScreen } from "../state/session";
+import { parseIndex, questionAt, routeFor, type QuizScreen } from "../state/session";
+import { funnyWrongOn } from "../state/variants";
 import { appBarTitle } from "../styles/screen.css";
 import { vars } from "../styles/theme.css";
 import { visuallyHidden } from "./a11y.css";
@@ -90,6 +91,14 @@ export function useQuizRoute(screen: QuizScreen, rawIndex: string | undefined) {
 
   const view: QuizView | null = route.kind === "show" && words && progress ? { words, progress, index } : null;
   return { view, restart, leave };
+}
+
+export function useQuestion(view: QuizView, index: number) {
+  const app = useAppData();
+  return useMemo(
+    () => questionAt(view.progress, view.words, index, { funnyWrong: funnyWrongOn(app.store, view.progress.roundId) }),
+    [app.store, view, index],
+  );
 }
 
 export function quizAppBar(position: { index: number; total: number } | string) {

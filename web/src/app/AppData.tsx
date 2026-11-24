@@ -1,6 +1,7 @@
 import { DEFAULT_CONFIG, type RemoteConfig } from "@yk/quiz-core/config";
 import type { Word } from "@yk/quiz-core/types";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { LOCALE } from "../data/locale";
 import type { LoadWordsResult } from "../data/loadWords";
 import type { KeyValue } from "../state/progress";
 import { visuallyHidden } from "./a11y.css";
@@ -29,7 +30,6 @@ export interface AppData {
 
 const AppDataContext = createContext<AppData | null>(null);
 
-const LOCALE = "ko-KR";
 const browserTimers: TimerPair = {
   set: (fn, ms) => setTimeout(fn, ms),
   clear: (id) => clearTimeout(id as ReturnType<typeof setTimeout>),

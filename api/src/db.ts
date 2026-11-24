@@ -106,9 +106,9 @@ export const readStats = async (env: Env, from: string, to: string): Promise<Sta
   const [f, r, e, h, v] = await env.DB.batch<Record<string, string | number>>([
     funnel, returned, experiments, hosts, shareVia,
   ]);
-  const returnedByDay = new Map((r?.results ?? []).map((row) => [String(row.day), Number(row.n)]));
+  const returnedByDay = new Map((r.results).map((row) => [String(row.day), Number(row.n)]));
   return {
-    days: (f?.results ?? []).map((row) => ({
+    days: (f.results).map((row) => ({
       day: String(row.day),
       opened: Number(row.opened),
       started: Number(row.started),
@@ -116,18 +116,18 @@ export const readStats = async (env: Env, from: string, to: string): Promise<Sta
       shared: Number(row.shared),
       returnedNextDay: returnedByDay.get(String(row.day)) ?? 0,
     })),
-    experiments: (e?.results ?? []).map((row) => ({
+    experiments: (e.results).map((row) => ({
       id: String(row.id),
       variant: String(row.variant),
       exposed: Number(row.exposed),
       completed: Number(row.completed),
       shared: Number(row.shared),
     })),
-    hosts: (h?.results ?? []).map((row) => ({
+    hosts: (h.results).map((row) => ({
       host: String(row.host),
       appVersion: String(row.appVersion),
       opened: Number(row.opened),
     })),
-    shareVia: Object.fromEntries((v?.results ?? []).map((row) => [String(row.via), Number(row.n)])),
+    shareVia: Object.fromEntries((v.results).map((row) => [String(row.via), Number(row.n)])),
   };
 };

@@ -67,7 +67,7 @@ export const parseHost = (value: unknown): "app" | "browser" | null =>
 export const parseAppVersion = (value: unknown): string | null =>
   typeof value === "string" && APP_VERSION.test(value) ? value : null;
 
-const DOMAIN_LIKE = /\.(?:[A-Za-z]{2,}|xn--[a-z0-9-]+)(?=$|[/?#:.,!)\s])/i;
+const DOMAIN_LIKE = /\.[A-Za-z]{2,}/;
 
 const looksLikePii = (word: string): boolean => {
   if (word.includes("@") || word.includes("://") || word.toLowerCase().includes("www.")) return true;

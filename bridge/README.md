@@ -10,7 +10,7 @@
 2. 인사는 두 길이다. 빠른 길은 앱이 자기 정보를 미리 넣어 두는 것이다. 느린 길은 그게 없을 때 웹이 `hello` 요청을 보내고 정해진 시간(기본 300ms)만 기다리는 것이다. 답이 없으면 브라우저로 본다.
 3. 더하기만 한다. 새 기능과 새 필드는 추가만 한다. 받는 쪽은 모르는 필드, 모르는 이벤트, 모르는 종류의 메시지를 버리고 죽지 않는다.
 4. 기능마다 버전이 있다. 기능표는 `이름 → 정수 버전`이다. 기능의 뜻이 바뀌면 그 기능 버전만 올린다. 규약 전체 버전(`PROTOCOL_VERSION`)은 메시지 모양이 깨질 때만 올린다.
-5. 모든 요청에는 시간 제한이 있다(기본 5000ms). 답이 안 오면 `TIMEOUT`으로 끝내고 웹 방식으로 넘어간다. 늦게 온 답은 버린다.
+5. 모든 요청에는 시간 제한이 있다(기본 5000ms). 답이 안 오면 `TIMEOUT`으로 끝낸다. 그다음 길은 호출이 정한다. 대체 길이 있는 호출은 웹 방식으로 넘어가고, 공유는 앱 호출이 `TIMEOUT`이면 거기서 `{ via: "native", completed: false }`로 끝낸다(아래 공유 절). 늦게 온 답은 버린다.
 6. 모르는 요청에는 반드시 거절로 답한다. 앱은 모르는 이름에 `UNSUPPORTED`를 돌려준다. 조용히 무시하지 않는다.
 
 모르는 규약 버전(앱이 2, 웹은 1만 앎)을 만나면 웹은 앱이 없는 것으로 보고 전부 웹 방식으로 간다.
@@ -23,6 +23,8 @@
        { v, kind: "response", id, ok: false, error: { code, message? } }
 이벤트 { v, kind: "event", name, payload? }
 ```
+
+앱이 모르는 규약 버전(`v`)이거나 모양이 틀린 요청이라도 `id`가 있으면 앱은 현재 규약 버전으로 `BAD_REQUEST` 실패 응답을 돌려준다. `id`가 없으면 답 없이 버려지고, 웹은 시간이 지나 `TIMEOUT`을 받는다.
 
 오류 코드는 `UNSUPPORTED`, `TIMEOUT`, `FAILED`, `BAD_REQUEST`, `NO_HOST` 다.
 
@@ -52,7 +54,7 @@
 | 기능 | 버전 | payload → 결과 |
 | --- | --- | --- |
 | `share` | 1 | `{ title?, text?, url? }` → `{ completed: boolean }` |
-| `haptics` | 1 | `{ kind }` |
+| `haptics` | 1 | `{ kind: "success" \| "error" }` |
 | `notify` | 1 | `{ action: "status" \| "request" \| "schedule-weekly" \| "cancel" }` → `{ granted: boolean }` |
 | `ads` | 1 | `{ visible: boolean }` |
 | `offline` | - | 자리만, 아직 정의 안 함 |

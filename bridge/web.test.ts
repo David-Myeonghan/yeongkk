@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PROTOCOL_VERSION, response } from "./protocol";
+import { BridgeError, PROTOCOL_VERSION, response } from "./protocol";
 import { createWebBridge } from "./web";
 
 const injected = { protocol: PROTOCOL_VERSION, appVersion: "1.0.0", platform: "ios", capabilities: { share: 1 } };
@@ -82,6 +82,18 @@ describe("web bridge 세부", () => {
     const assertion = expect(p).rejects.toMatchObject({ code: "TIMEOUT" });
     await vi.advanceTimersByTimeAsync(20);
     await assertion;
+  });
+
+  it("call 기본 시간 제한은 5000ms 다", async () => {
+    const bridge = createWebBridge({ injected, post: () => undefined });
+    await bridge.ready();
+    let error: unknown;
+    void bridge.call("share").catch((e: unknown) => { error = e; });
+    await vi.advanceTimersByTimeAsync(4999);
+    expect(error).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(error).toBeInstanceOf(BridgeError);
+    expect(error).toMatchObject({ code: "TIMEOUT" });
   });
 
   it("helloTimeoutMs 를 바꿀 수 있다", async () => {

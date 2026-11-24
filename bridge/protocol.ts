@@ -56,14 +56,14 @@ export class BridgeError extends Error {
   }
 }
 
-type Obj = Record<string, unknown>;
+export type Obj = Record<string, unknown>;
 
-const isObj = (x: unknown): x is Obj => typeof x === "object" && x !== null && !Array.isArray(x);
-const isText = (x: unknown): x is string => typeof x === "string" && x.length > 0;
+export const isObj = (x: unknown): x is Obj => typeof x === "object" && x !== null && !Array.isArray(x);
+export const isText = (x: unknown): x is string => typeof x === "string" && x.length > 0;
 const withOptional = <K extends string>(src: Obj, key: K): { [P in K]?: unknown } =>
   key in src && src[key] !== undefined ? ({ [key]: src[key] } as { [P in K]?: unknown }) : {};
 
-function toObject(raw: unknown): Obj | null {
+export function toObject(raw: unknown): Obj | null {
   if (typeof raw === "string") {
     try {
       const parsed: unknown = JSON.parse(raw);

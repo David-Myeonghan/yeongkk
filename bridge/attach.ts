@@ -1,3 +1,4 @@
+import { toObject } from "./protocol";
 import { createWebBridge, type WebBridge, type WebBridgeOptions } from "./web";
 
 export type BridgeWindow = Window & {
@@ -9,8 +10,7 @@ function readInjected(view: BridgeWindow["ReactNativeWebView"]): unknown {
   try {
     const json = view?.injectedObjectJson?.();
     if (typeof json !== "string" || json === "") return undefined;
-    const parsed: unknown = JSON.parse(json);
-    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? parsed : undefined;
+    return toObject(json) ?? undefined;
   } catch {
     return undefined;
   }

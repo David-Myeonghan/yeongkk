@@ -2,10 +2,7 @@ import { AppScreen } from "@stackflow/plugin-basic-ui";
 import { useFlow, type ActivityComponentType } from "@stackflow/react";
 import { useEffect, useMemo } from "react";
 import { visuallyHidden } from "../app/a11y.css";
-import { useAppData } from "../app/AppData";
-import { Icon, quizAppBar, useBehind, useHeadingFocus, useQuizRoute, type QuizView } from "../app/screen";
-import { questionAt } from "../state/session";
-import { funnyWrongOn } from "../state/variants";
+import { Icon, quizAppBar, useBehind, useHeadingFocus, useQuestion, useQuizRoute, type QuizView } from "../app/screen";
 import * as q from "../styles/quiz.css";
 import * as ui from "../styles/screen.css";
 import { vars } from "../styles/theme.css";
@@ -24,15 +21,11 @@ export const WordCard: ActivityComponentType<"WordCard"> = ({ params }) => {
 
 function WordCardBody(props: { view: QuizView; index: number; restart(): void; leave(fn: () => void): void }) {
   const { view, index, restart, leave } = props;
-  const app = useAppData();
   const { replace } = useFlow();
   const headingRef = useHeadingFocus<HTMLHeadingElement>();
   const behind = useBehind();
   const record = view.progress.answers[index];
-  const question = useMemo(
-    () => questionAt(view.progress, view.words, index, { funnyWrong: funnyWrongOn(app.store, view.progress.roundId) }),
-    [app.store, view, index],
-  );
+  const question = useQuestion(view, index);
   const word = useMemo(() => view.words.find((w) => w.id === record?.wordId), [view.words, record]);
 
   useEffect(() => {

@@ -1,0 +1,72 @@
+name: deploy
+# main 에 합쳐지면 게시한다. 웹 파일 · 단어 · 설정 · API 가 Worker 하나로 같이 올라간다.
+# PR 의 코드는 여기서 돌지 않는다(push 와 손으로 돌리기만). 비밀값은 Cloudflare 를 부르는 단계에만 준다.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "words/**"
+      - "config/**"
+      - "registry/**"
+      - "schema/**"
+      - "web/**"
+      - "bridge/**"
+      - "quiz-core/**"
+      - "api/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  deploy:
+    # if 와 environment 는 이 파일이 main 밖에서 돌지 못하게 막는다.
+    # 비밀값은 지금 저장소 단계에 있어서, 환경 production 은 비밀값을 지켜 주지 않는다. 값을 환경으로 옮겨야 지켜진다.
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - name: DB 가 만들어졌는지 확인
+        run: |
+          if grep -q '00000000-0000-0000-0000-000000000000' api/wrangler.jsonc; then
+            echo "::error::api/wrangler.jsonc 의 database_id 가 자리 표시 값입니다. d1-create 워크플로를 돌리고 그 값을 넣으세요."
+            exit 1
+          fi
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - run: npm run build -w web
+      - name: 단어 · 설정을 웹 폴더로
+        run: cp dist/*.json web/dist/
+      - name: 표 바꾸기 (D1 마이그레이션)
+        working-directory: api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: ../scripts/ci/wrangler-quiet.sh d1 migrations apply yeongkk --remote
+      - name: 올리기
+        working-directory: api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          STATS_TOKEN: ${{ secrets.STATS_TOKEN }}
+        run: |
+          if [ -n "$STATS_TOKEN" ]; then
+            umask 077
+            secrets_file="$RUNNER_TEMP/secrets.json"
+            trap 'rm -f "$secrets_file"' EXIT
+            jq -n --arg t "$STATS_TOKEN" '{STATS_TOKEN: $t}' > "$secrets_file"
+            ../scripts/ci/wrangler-quiet.sh deploy --secrets-file "$secrets_file"
+          else
+            echo "::warning::STATS_TOKEN 비밀값이 저장소에 없습니다. Worker 에 올라가 있는 토큰은 그대로입니다. 한 번도 올린 적 없으면 /api/stats 는 401 을 답합니다. 예전 토큰을 없애려면 wrangler secret delete STATS_TOKEN 을 돌리세요."
+            ../scripts/ci/wrangler-quiet.sh deploy
+          fi

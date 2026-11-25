@@ -10,7 +10,7 @@ export interface Reminder {
   disable(): Promise<ReminderState>;
 }
 
-const HIDDEN: ReminderState = { kind: "hidden" };
+export const HIDDEN: ReminderState = { kind: "hidden" };
 
 // 권한 창이 떠 있는 동안 기다려야 한다.
 const PROMPT_TIMEOUT_MS = 60_000;
@@ -32,7 +32,11 @@ export function createReminder(getBridgeFn: () => WebBridge): Reminder {
     }
   }
 
-  const settled = (answer: Answer | null): ReminderState => (answer === null ? HIDDEN : answer.scheduled ? { kind: "on" } : { kind: "offer" });
+  const settled = (answer: Answer | null): ReminderState => {
+    if (answer === null) return HIDDEN;
+    if (!answer.scheduled) return { kind: "offer" };
+    return answer.granted ? { kind: "on" } : { kind: "denied" };
+  };
 
   return {
     async load() {

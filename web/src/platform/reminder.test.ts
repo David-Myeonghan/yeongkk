@@ -28,6 +28,12 @@ describe("load", () => {
     expect(callFn.mock.calls[0]?.slice(0, 2)).toEqual(["notify", { action: "status" }]);
   });
 
+  it("예약은 있는데 기기에서 알림을 껐으면 설정 안내 (뜻: granted 를 버리면 안 올 알림을 켜진 것처럼 보임)", async () => {
+    const { reminder, callFn } = fakeBridge(true, answer(false, true));
+    expect(await reminder.load()).toEqual({ kind: "denied" });
+    expect(callFn).toHaveBeenCalledTimes(1);
+  });
+
   it.each([
     [true, false],
     [false, false],
@@ -99,6 +105,11 @@ describe("disable", () => {
   it("그래도 예약이 남았다고 하면 켜진 상태 그대로", async () => {
     const { reminder } = fakeBridge(true, answer(true, true));
     expect(await reminder.disable()).toEqual({ kind: "on" });
+  });
+
+  it("끈 뒤에도 예약이 남았는데 권한이 없으면 설정 안내", async () => {
+    const { reminder } = fakeBridge(true, answer(false, true));
+    expect(await reminder.disable()).toEqual({ kind: "denied" });
   });
 
   it("거절이면 던지지 않고 숨긴다", async () => {

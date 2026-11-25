@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { reminder, type ReminderState } from "../platform/reminder";
+import { HIDDEN, reminder, type ReminderState } from "../platform/reminder";
 import * as q from "../styles/quiz.css";
 import * as ui from "../styles/screen.css";
 import { useAppData } from "./AppData";
@@ -9,8 +9,6 @@ const ON = "월요일에 알려 줄게요";
 const TURN_OFF = "알림 끄기";
 const TURNED_OFF = "알림을 껐어요";
 const DENIED = "기기 설정에서 알림이 꺼져 있어요. 설정에서 켜 주세요.";
-
-const HIDDEN: ReminderState = { kind: "hidden" };
 
 /** 앱 안에서만 보인다. 월요일 아침 알림은 기기 안에서 예약되고 서버로는 아무것도 가지 않는다. */
 export function ReminderControl() {

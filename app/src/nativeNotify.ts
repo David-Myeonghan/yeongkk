@@ -16,17 +16,20 @@ async function ensureChannel(): Promise<void> {
   });
 }
 
+type Notifications = Awaited<ReturnType<typeof load>>;
+
+const allowed = (Notifications: Notifications, settings: Awaited<ReturnType<Notifications["getPermissionsAsync"]>>): boolean =>
+  settings.granted || settings.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
+
 export const nativeNotify: NotifyDeps = {
   async permissionGranted() {
     const Notifications = await load();
-    const settings = await Notifications.getPermissionsAsync();
-    return settings.granted || settings.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
+    return allowed(Notifications, await Notifications.getPermissionsAsync());
   },
   async requestPermission() {
     const Notifications = await load();
     await ensureChannel();
-    const settings = await Notifications.requestPermissionsAsync();
-    return settings.granted || settings.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
+    return allowed(Notifications, await Notifications.requestPermissionsAsync());
   },
   async isScheduled() {
     const Notifications = await load();

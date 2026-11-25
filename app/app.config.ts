@@ -1,9 +1,26 @@
 import type { ExpoConfig } from "expo/config";
 import pkg from "./package.json";
+import { PRIVACY_CONTACT } from "../tools/privacy/contact.ts";
 import { ADS_MODULE, resolveAdsConfig } from "./src/adsConfig.ts";
+import { PLACEHOLDER_IDENTIFIER, assertReleaseReady } from "./src/releaseCheck.ts";
 
-// 자리표시 값이다. 주인이 정하기 전에는 스토어용 빌드를 만들지 않는다.
-const APP_IDENTIFIER = "app.example.yeongkk";
+const filled = (raw: string | undefined): string | undefined => (raw === undefined || raw.trim() === "" ? undefined : raw.trim());
+
+// 식별자는 여기 한 곳에서만 정한다. 비우면 자리표시 값이고, production 빌드는 이 값이면 멈춘다.
+const APP_IDENTIFIER = filled(process.env.APP_IDENTIFIER) ?? PLACEHOLDER_IDENTIFIER;
+const EAS_PROJECT_ID = filled(process.env.EAS_PROJECT_ID);
+
+assertReleaseReady({
+  profile: filled(process.env.EAS_BUILD_PROFILE) ?? filled(process.env.APP_PROFILE),
+  identifier: APP_IDENTIFIER,
+  webUrl: process.env.EXPO_PUBLIC_WEB_URL,
+  projectId: EAS_PROJECT_ID,
+  privacyContact: PRIVACY_CONTACT,
+});
+
+const SPLASH_LIGHT = "#f5f4fa";
+const SPLASH_DARK = "#15131d";
+const ICON_ACCENT = "#5432e6";
 
 const ADS_TRACKING_TEXT = "맞는 광고를 보여 주려고 이 기기의 광고 식별자를 사용해요. 허용하지 않아도 앱은 똑같이 쓸 수 있어요.";
 
@@ -14,13 +31,19 @@ const ads = resolveAdsConfig(process.env, { nativeModuleExcluded: excluded.inclu
 // 로컬 알림만 쓴다. 플러그인 기본값은 iOS 푸시 권한(aps-environment)을 더하므로 끈다.
 const notifications: NonNullable<ExpoConfig["plugins"]>[number] = ["expo-notifications", { enableRemoteNotifications: false }];
 
+const splash: NonNullable<ExpoConfig["plugins"]>[number] = [
+  "expo-splash-screen",
+  { image: "./assets/splash.png", imageWidth: 200, backgroundColor: SPLASH_LIGHT, dark: { image: "./assets/splash.png", backgroundColor: SPLASH_DARK } },
+];
+
 const plugins: NonNullable<ExpoConfig["plugins"]> = ads.enabled
   ? [
       notifications,
+      splash,
       ["react-native-google-mobile-ads", { iosAppId: ads.iosAppId, androidAppId: ads.androidAppId, userTrackingUsageDescription: ADS_TRACKING_TEXT }],
       ["expo-tracking-transparency", { userTrackingPermission: ADS_TRACKING_TEXT }],
     ]
-  : [notifications];
+  : [notifications, splash];
 
 const config: ExpoConfig = {
   name: "뭔말이야",
@@ -28,10 +51,14 @@ const config: ExpoConfig = {
   version: pkg.version,
   orientation: "portrait",
   userInterfaceStyle: "automatic",
-  ios: { bundleIdentifier: APP_IDENTIFIER, supportsTablet: false },
-  android: { package: APP_IDENTIFIER },
+  icon: "./assets/icon.png",
+  ios: { bundleIdentifier: APP_IDENTIFIER, supportsTablet: false, config: { usesNonExemptEncryption: false } },
+  android: {
+    package: APP_IDENTIFIER,
+    adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: ICON_ACCENT },
+  },
   plugins,
-  extra: { ads },
+  extra: { ads, ...(EAS_PROJECT_ID === undefined ? {} : { eas: { projectId: EAS_PROJECT_ID } }) },
 };
 
 export default config;

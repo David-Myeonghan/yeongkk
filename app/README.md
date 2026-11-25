@@ -20,8 +20,10 @@
 
    ```
    cd app
-   EXPO_PUBLIC_WEB_URL=http://<Mac의 LAN 주소>:8787 npx expo start
+   EXPO_PUBLIC_WEB_URL=http://<Mac의 LAN 주소>:8787 npx expo start --go
    ```
+
+   `--go`는 Expo Go로 연다. `expo-dev-client`를 깔아 두었기 때문에, 이 옵션이 없으면 개발 빌드를 기다릴 수 있다(`expo start --help`에서 `--go`와 `--dev-client`를 확인했다. 기본값이 바뀌는지는 돌려 보지 않았다).
 
 4. 폰의 Expo Go로 QR 코드를 읽는다.
 
@@ -85,12 +87,39 @@ Expo Go: 문서에 따르면 로컬 알림은 Expo Go에서 된다. 원격 푸�
 - `src/nativeHost.ts` 그 기기 호출을 실제 `Share`, `expo-haptics`에 잇는다.
 - `src/reply.ts` 앱의 답을 웹에 주입할 스크립트로 만든다.
 - `src/adsConfig.ts` 환경 변수를 광고 설정으로. `src/adsConsent.ts` 동의 순서(한 번만 돎). `src/bannerState.ts` 배너 보임 상태. `src/nativeAds.ts` 광고 모듈을 늦게 불러 호출을 잇는다. `src/AdBanner.tsx` 배너 화면.
+- `src/releaseCheck.ts` 스토어 빌드 설정 검사. `scripts/` 아이콘 만들기와 PNG 읽기.
 - `src/Shell.tsx` 웹뷰와 위 조각을 묶는다. `src/Offline.tsx`는 연결 실패 화면이다.
 
-순수 모듈(`config`, `navigation`, `host`, `notify`, `reply`, `recovery`, `adsConfig`, `adsConsent`)만 루트 `npm test`가 시험한다. 이 시험은 `react-native`를 가져오지 않는다.
+순수 모듈(`config`, `navigation`, `host`, `notify`, `reply`, `recovery`, `adsConfig`, `adsConsent`, `releaseCheck`)과 `app.config.ts`, `eas.json` 모양, 아이콘 파일만 루트 `npm test`가 시험한다. 이 시험은 `react-native`를 가져오지 않는다.
 `Shell.tsx`, `Offline.tsx`, `nativeHost.ts`, `nativeNotify.ts`, `nativeAds.ts`, `AdBanner.tsx`, `bannerState.ts`는 시험이 없다.
 
-앱 식별자(`app.config.ts`의 `APP_IDENTIFIER`)는 자리표시 값 `app.example.yeongkk`다. 주인이 정하기 전에는 스토어용 빌드를 만들지 않는다.
+## 빌드 프로필과 출시 설정
+
+`eas.json`에 프로필 셋이 있다. 아직 한 번도 `eas build`를 돌리지 않았다. 순서는 `../docs/release.md`.
+
+- `development` 개발 클라이언트(`expo-dev-client`), 내부 배포. 검사 없음.
+- `preview` 내부 배포(출시와 같은 모양). 식별자가 자리표시가 아니어야 하고 웹 주소가 `https://`여야 한다. `workers.dev` 주소는 된다.
+- `production` 스토어용(`autoIncrement`, 빌드 번호는 Expo 서버가 올린다: `appVersionSource: remote`).
+
+설정(`app.config.ts`)이 읽는 값은 환경 변수다. 값은 프로필의 `env`(`eas.json`, 비밀이 아니다)에 적는다.
+
+- `APP_IDENTIFIER` iOS 번들 아이디와 안드로이드 패키지 이름. 이 한 곳에서만 정한다. 비우면 자리표시 `app.example.yeongkk`.
+- `EXPO_PUBLIC_WEB_URL` 앱이 여는 웹 주소.
+- `EAS_PROJECT_ID` `eas init`이 알려 주는 UUID. 있으면 `extra.eas.projectId`로 들어간다. 앱 설정이 코드라서 `eas init`은 파일에 자동으로 못 쓴다.
+- `APP_PROFILE` 프로필 이름. `eas.json`이 프로필마다 준다. 클라우드 빌드 서버는 `EAS_BUILD_PROFILE`을 직접 주지만, 내 컴퓨터에서 설정을 읽을 때는 이 값이 있어야 같은 검사가 돈다.
+
+`src/releaseCheck.ts`가 검사한다. 순수 모듈이고 `app.config.ts`가 부른다. `production`(그리고 `development`, `preview`가 아닌 모든 이름)에서는 아래를 모두 모아 오류 하나로 낸다.
+
+- 식별자가 자리표시이거나 영문 소문자와 숫자 마디 두 개 이상이 아니다.
+- 웹 주소가 없다, `https://`가 아니다, `localhost`, IP 주소, 점 없는 이름, `*.workers.dev`다. 설치된 앱 안의 주소는 바꿀 수 없어서, 스토어 빌드는 주인의 도메인만 연다.
+- `EAS_PROJECT_ID`가 없다.
+- 개인정보 문의처(`../tools/privacy/contact.ts`)가 자리표시 `PRIVACY_CONTACT_PLACEHOLDER` 그대로다.
+
+`development`와 프로필 없음(`expo start`, Expo Go)은 검사하지 않는다. 오류 표는 `../docs/release.md`.
+
+`ios.config.usesNonExemptEncryption: false`로 수출 규정 질문을 바이너리에서 답한다. 이 앱이 쓰는 암호화는 OS의 HTTPS뿐이다. 코드에 직접 만든 암호는 없다(웹의 `crypto.randomUUID`는 무작위 번호 만들기이고, 서버의 SHA-256은 Worker 안에서만 돈다). `ios.supportsTablet`은 `false`다.
+
+아이콘과 스플래시: `assets/icon.png`(1024x1024, 투명 없음), `assets/adaptive-icon.png`, `assets/splash.png`는 자리표시다. 포인트 색 바탕에 「뭔말」을 쓴 그림이고 `npm run assets -w app`(`scripts/generate-assets.ts`, Playwright로 그린다. 글꼴은 이 맥의 시스템 한글 글꼴이라 다른 컴퓨터에서는 모양이 다를 수 있다)으로 다시 만들 수 있다. 주인이 진짜 그림으로 덮어쓴다. 스플래시는 `expo-splash-screen` 플러그인으로 건다(라이트 `#f5f4fa`, 다크 `#15131d`).
 
 ## 링크 처리의 한계
 
@@ -102,7 +131,7 @@ Expo Go: 문서에 따르면 로컬 알림은 Expo Go에서 된다. 원격 푸�
 광고를 넣은 빌드든 아니든, 어떤 빌드도 실제 기기에서 돌려 본 적이 없다. 광고를 넣은 첫 빌드는 스토어에 내기 전에 반드시 실제 폰에서 먼저 돌려 본다. 제외 목록 방식이 두 OS의 빌드에서 SDK를 정말 빼는지는 자동 연결(autolinking) 목록으로만 확인했고, Gradle과 CocoaPods 빌드는 돌리지 않았다.
 
 이 앱은 실제 폰이나 시뮬레이터에서 한 번도 돌려 보지 않았다. 이 맥에는 Xcode가 없다.
-확인한 것은 타입 검사, 순수 모듈 시험, Metro 번들 만들기(`npx expo export`), `expo-doctor`뿐이다.
+확인한 것은 타입 검사, 순수 모듈 시험, Metro 번들 만들기(`npx expo export`), `expo-doctor`, 저장소 밖 복사본에서의 `expo prebuild`뿐이다. 아래와 `../docs/device-checklist.md`의 표가 같은 목록이다.
 아래는 모두 사람이 폰에서 봐야 한다.
 
 - 웹이 앱 안에서 뜨는지, 첫 화면까지 걸리는 시간.
@@ -117,7 +146,7 @@ Expo Go: 문서에 따르면 로컬 알림은 Expo Go에서 된다. 원격 푸�
 ## 일부러 아직 안 한 것
 
 - 알림 누르면 특정 화면 열기(딥링크), 알림 문구 바꾸기, 요일 · 시각 고르기. 서버 푸시.
-- EAS 빌드, 스토어 제출, OTA 업데이트.
+- OTA 업데이트. (EAS 빌드와 스토어 제출은 설정만 있고 돌려 본 적이 없다.)
 - 안드로이드 뒤로 가기 버튼 처리.
-- 아이콘과 스플래시.
+- 진짜 아이콘과 스플래시(지금은 자리표시).
 - 배포 빌드에서 `http://` 주소 열기. iOS와 안드로이드는 기본으로 평문 http를 막는다. 개발은 Expo Go로만 한다.

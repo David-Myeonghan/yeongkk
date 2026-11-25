@@ -53,6 +53,12 @@ describe("share", () => {
     expect(deps.share).toHaveBeenCalledWith({ message: "https://q.example/" });
   });
 
+  it("Android: 글만 있으면 글만 message 가 된다 (url 을 늘 붙이면 잡힘)", async () => {
+    const { host, deps } = make({ platform: "android" });
+    await call(host, "share", { text: "3점" });
+    expect(deps.share).toHaveBeenCalledWith({ message: "3점" });
+  });
+
   it("iOS: url 만 있으면 url 만 넘긴다 (빈 message 를 지어내면 잡힘)", async () => {
     const { host, deps } = make();
     await call(host, "share", { url: "https://q.example/" });

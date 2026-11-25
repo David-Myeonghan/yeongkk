@@ -13,8 +13,6 @@ export interface PrivacyDoc {
 
 export const POLICY_UPDATED = "2026-11-25";
 
-const eventLine = (name: string, what: string): string => `${name}: ${what}`;
-
 const EVENT_DESCRIPTIONS: Record<(typeof EVENT_NAMES)[number], string> = {
   app_open: "앱이나 웹을 열었다. 공유 링크로 들어왔는지(예/아니오)를 함께 담는다.",
   bridge_hello: "웹이 앱과 연결됐는지(앱/없음)와 걸린 시간(밀리초)을 담는다.",
@@ -56,7 +54,7 @@ export const policy = (contact: string): PrivacyDoc => ({
             "행동 이름과 그 행동에 딸린 값. 아래 목록이 전부다.",
           ],
         },
-        { ul: EVENT_NAMES.map((name) => eventLine(name, EVENT_DESCRIPTIONS[name])) },
+        { ul: EVENT_NAMES.map((name) => `${name}: ${EVENT_DESCRIPTIONS[name]}`) },
         {
           p: "글자 값에 @가 들어 있으면 서버가 그 값을 버린다. 서버는 이 목록에 없는 행동 이름도 버린다.",
         },
@@ -88,11 +86,12 @@ export const policy = (contact: string): PrivacyDoc => ({
     {
       title: "기기에 저장하는 것",
       blocks: [
-        { p: "웹 저장소(localStorage)에 아래 네 가지를 둔다. 앱 안의 웹뷰도 같은 방식이다." },
+        { p: "웹 저장소(localStorage)에 아래 다섯 가지를 둔다. 앱 안의 웹뷰도 같은 방식이다." },
         {
           ul: [
             "푼 문제 진행(yk.progress.v1).",
             "끝낸 판 목록(yk.completed.v1).",
+            "이번 판의 설정(yk.round-flags.v1). 판 번호, 웃긴 오답을 켰는지, 실험 묶음 이름을 담는다.",
             "익명 번호(yk.anon.v1).",
             "아직 못 보낸 행동 기록 대기열(yk.events.v1).",
           ],

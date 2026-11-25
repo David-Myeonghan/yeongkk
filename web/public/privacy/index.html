@@ -67,10 +67,11 @@ ul{padding-left:20px}
 </ul>
 <p>다만 웹과 API를 내주는 곳이 Cloudflare라서, 요청은 Cloudflare 장비를 거친다. Cloudflare가 자기 운영을 위해 남기는 기록은 Cloudflare의 방침을 따른다. 우리 코드는 그 기록을 읽지 않는다.</p>
 <h2>기기에 저장하는 것</h2>
-<p>웹 저장소(localStorage)에 아래 네 가지를 둔다. 앱 안의 웹뷰도 같은 방식이다.</p>
+<p>웹 저장소(localStorage)에 아래 다섯 가지를 둔다. 앱 안의 웹뷰도 같은 방식이다.</p>
 <ul>
 <li>푼 문제 진행(yk.progress.v1).</li>
 <li>끝낸 판 목록(yk.completed.v1).</li>
+<li>이번 판의 설정(yk.round-flags.v1). 판 번호, 웃긴 오답을 켰는지, 실험 묶음 이름을 담는다.</li>
 <li>익명 번호(yk.anon.v1).</li>
 <li>아직 못 보낸 행동 기록 대기열(yk.events.v1).</li>
 </ul>

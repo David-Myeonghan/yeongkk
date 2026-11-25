@@ -1,6 +1,7 @@
 import { createNativeHost, type NativeHost } from "../../bridge/native-host";
 import { BridgeError, isObj } from "../../bridge/protocol";
 import type { ConsentOutcome } from "./adsConsent";
+import { notifyHandler, type NotifyDeps } from "./notify";
 
 export type HapticKind = "success" | "error";
 
@@ -18,6 +19,7 @@ export interface HostDeps {
   dismissedAction: string;
   share(content: ShareContent): Promise<{ action: string }>;
   haptic(kind: HapticKind): Promise<void>;
+  notify: NotifyDeps;
   ads?: AdsDeps;
 }
 
@@ -80,6 +82,7 @@ export function createAppHost(deps: HostDeps): NativeHost {
     platform: deps.platform,
     handlers: {
       ...(deps.ads ? { ads: adsHandler(deps.ads) } : {}),
+      notify: notifyHandler(deps.notify),
       share: {
         version: 1,
         async handle(payload) {

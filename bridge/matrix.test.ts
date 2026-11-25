@@ -24,7 +24,7 @@ const SHELLS = {
   "껍데기 1.0": { injects: true, answers: true, appVersion: "1.0.0", handlers: { share: shareHandler } },
   "껍데기 1.1": {
     injects: true, answers: true, appVersion: "1.1.0",
-    handlers: { share: shareHandler, haptics: { version: 1, handle: () => null }, notify: { version: 1, handle: () => ({ granted: true }) } },
+    handlers: { share: shareHandler, haptics: { version: 1, handle: () => null }, notify: { version: 1, handle: () => ({ granted: true, scheduled: false }) } },
   },
   "정보를 안 넣는 옛 껍데기": { injects: false, answers: true, appVersion: "0.9.0", handlers: { share: shareHandler } },
   "답이 없는 껍데기": { injects: false, answers: false, appVersion: "0.1.0", handlers: {} },
@@ -120,7 +120,7 @@ describe("기능 — 묻고 쓴다", () => {
     expect([bridge.has("share"), bridge.has("haptics"), bridge.has("notify")]).toEqual([true, true, true]);
     const p = bridge.call("notify");
     await vi.runAllTimersAsync();
-    await expect(p).resolves.toEqual({ granted: true });
+    await expect(p).resolves.toEqual({ granted: true, scheduled: false });
   });
 
   it("기능 버전이 모자라면 has 는 거짓", async () => {

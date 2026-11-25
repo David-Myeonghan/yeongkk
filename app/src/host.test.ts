@@ -11,6 +11,13 @@ function make(overrides: Partial<HostDeps> = {}) {
     dismissedAction: "dismissedAction",
     share: vi.fn(async () => ({ action: "sharedAction" })),
     haptic: vi.fn(async () => undefined),
+    notify: {
+      permissionGranted: vi.fn(async () => false),
+      requestPermission: vi.fn(async () => false),
+      isScheduled: vi.fn(async () => false),
+      cancel: vi.fn(async () => undefined),
+      schedule: vi.fn(async () => undefined),
+    },
     ...overrides,
   };
   return { deps, host: createAppHost(deps) };
@@ -28,7 +35,7 @@ describe("info", () => {
       protocol: PROTOCOL_VERSION,
       appVersion: "0.1.0",
       platform: "ios",
-      capabilities: { share: 1, haptics: 1 },
+      capabilities: { share: 1, haptics: 1, notify: 1 },
     });
   });
 });
@@ -123,7 +130,7 @@ describe("haptics", () => {
 
 describe("bridge 규칙", () => {
   it("모르는 기능은 UNSUPPORTED", async () => {
-    expect(await call(make().host, "notify", { action: "status" })).toMatchObject({ ok: false, error: { code: "UNSUPPORTED" } });
+    expect(await call(make().host, "offline")).toMatchObject({ ok: false, error: { code: "UNSUPPORTED" } });
   });
 
   it("hello 는 info 로 답한다", async () => {
@@ -163,7 +170,7 @@ describe("ads", () => {
   });
 
   it("켠 빌드는 ads 1 을 알린다", () => {
-    expect(make({ ads: makeAds() }).host.info().capabilities).toEqual({ share: 1, haptics: 1, ads: 1 });
+    expect(make({ ads: makeAds() }).host.info().capabilities).toEqual({ share: 1, haptics: 1, notify: 1, ads: 1 });
   });
 
   it("visible:true → 동의 뒤 보여 주고 {visible:true}", async () => {

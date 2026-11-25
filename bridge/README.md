@@ -57,11 +57,18 @@
 | --- | --- | --- |
 | `share` | 1 | `{ title?, text?, url? }` → `{ completed: boolean }` |
 | `haptics` | 1 | `{ kind: "success" \| "error" }` |
-| `notify` | 1 | `{ action: "status" \| "request" \| "schedule-weekly" \| "cancel" }` → `{ granted: boolean }` |
+| `notify` | 1 | `{ action: "status" \| "request" \| "schedule-weekly" \| "cancel" }` → `{ granted: boolean, scheduled: boolean }` |
 | `ads` | 1 | `{ visible: boolean }` → `{ visible: boolean }` (실제로 적용된 상태) |
 | `offline` | - | 자리만, 아직 정의 안 함 |
 
-지금 앱 쪽 처리기가 있는 것은 `share`, `haptics`, `ads`뿐이다(`app/src/host.ts`). 모두 실제 기기에서는 돌려 본 적이 없다. `notify`는 규약상의 약속일 뿐 처리기가 없다.
+지금 앱 쪽 처리기가 있는 것은 `share`, `haptics`, `notify`, `ads`다(`app/src/host.ts`). 모두 실제 기기에서는 돌려 본 적이 없다.
+
+`notify`는 매주 월요일 오전 9시(기기 현지 시각)에 「새 말이 올라왔어요」를 알리는 기기 안 예약 알림이다. 서버 푸시가 아니고 푸시 토큰도 받지 않는다. 앱은 늘 기능표에 `notify`를 싣는다. 네이티브 모듈을 못 불러오면 `FAILED`로 답한다. 결과는 `{ granted, scheduled }`이고 `granted`는 지금의 알림 권한, `scheduled`는 예약이 걸려 있는지다.
+- `status` 지금 상태만 알린다. 권한을 묻지 않는다.
+- `request` 운영체제에 권한을 묻고 결과를 알린다. 예약은 하지 않는다.
+- `schedule-weekly` 권한이 없으면 먼저 묻는다. 허용됐으면 이전 예약을 지우고 하나만 건다. 거부됐으면 아무것도 걸지 않고 `granted: false`로 답한다. 권한 창이 떠 있는 동안 기다려야 하므로 웹은 이 호출만 60초까지 기다린다.
+- `cancel` 예약을 지우고 지금 상태를 알린다.
+- 모르는 `action`이나 모양이 틀린 payload는 `BAD_REQUEST`다.
 
 `ads`는 광고를 넣어 빌드한 앱에만 기능표에 나타난다(`app/README.md`의 「광고」). 웹은 `has("ads", 1)`이 참일 때만 부르고, 원격 설정 `features.ads` 값을 `visible`로 보낸다. 배너는 `visible: true`를 처음 받을 때 동의(UMP, iOS는 추적 허용창까지)를 거친 뒤에 뜨고, 동의 흐름이 끝나지 않으면 `{ visible: false }`로 답한다.
 

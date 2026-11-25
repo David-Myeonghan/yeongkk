@@ -1,7 +1,7 @@
 # 앱 껍데기
 
 웹 퀴즈를 웹뷰로 여는 Expo(React Native) 앱이다.
-앱이 하는 일은 둘뿐이다. 웹을 열고, 웹이 부르는 기기 기능(공유, 진동)에 답한다.
+앱이 하는 일은 둘뿐이다. 웹을 열고, 웹이 부르는 기기 기능(공유, 진동, 알림)에 답한다.
 메시지 규약은 `../bridge/README.md`에 있다.
 
 ## 폰에서 돌려 보기 (Expo Go)
@@ -66,18 +66,29 @@ npx expo prebuild
 
 스토어 심사 때 볼 것: iOS 개인정보 영양 표시와 추적 문구, 안드로이드 데이터 보안 양식과 `AD_ID` 권한(플러그인이 더한다), 광고 식별자 사용 신고.
 
+## 월요일 알림
+
+웹의 결과 화면에서 「월요일에 알려 줄까요?」를 누르면 `notify`(`schedule-weekly`)가 온다. 앱은 매주 월요일 오전 9시(기기 현지 시각)에 「뭔말이야 / 이번 주 새 말이 올라왔어요.」를 알리는 알림을 하나 건다. 문구와 시각은 `src/notify.ts` 한 곳에 있다. 알림을 누르면 앱만 열린다.
+
+이것은 기기 안에서 예약하는 로컬 알림이다. 서버 푸시가 아니고, 푸시 토큰을 받거나 보내지 않는다. 그래서 `app.config.ts`는 `expo-notifications` 플러그인을 `enableRemoteNotifications: false`로 건다. 이 값이 기본(`true`)이면 플러그인이 iOS 푸시 권한(`aps-environment`)을 더하고, 스토어 설정에 푸시가 들어간다. 안드로이드 쪽은 라이브러리가 `POST_NOTIFICATIONS`(안드로이드 13 이상)와 `RECEIVE_BOOT_COMPLETED`를 매니페스트에 더한다.
+
+앱을 켤 때는 알림과 관련된 어떤 것도 돌지 않는다. 권한 창과 안드로이드 알림 채널은 처음 `request`나 `schedule-weekly`가 올 때 만든다. 네이티브 모듈은 그때 늦게 불러오고, 못 불러오면 `FAILED`로 답한다.
+
+Expo Go: 문서에 따르면 로컬 알림은 Expo Go에서 된다. 원격 푸시는 안드로이드 Expo Go에서 SDK 53부터 안 된다(쓰지 않는다). 이 알림은 실제 기기에서 돌려 본 적이 없다.
+
 ## 코드 지도
 
 - `src/config.ts` 웹 주소(`WEB_URL`)와 출처(`WEB_ORIGIN`).
 - `src/navigation.ts` 어떤 주소를 웹뷰에서 열고, 브라우저로 보내고, 무시할지.
-- `src/host.ts` 웹이 부르는 `share`, `haptics`, `ads` 처리기. 기기 호출은 밖에서 받는다.
+- `src/host.ts` 웹이 부르는 `share`, `haptics`, `notify`, `ads` 처리기. 기기 호출은 밖에서 받는다.
+- `src/notify.ts` `notify` 처리기와 알림 문구 · 시각. `src/nativeNotify.ts` 그 기기 호출을 `expo-notifications`에 늦게 불러 잇는다.
 - `src/nativeHost.ts` 그 기기 호출을 실제 `Share`, `expo-haptics`에 잇는다.
 - `src/reply.ts` 앱의 답을 웹에 주입할 스크립트로 만든다.
 - `src/adsConfig.ts` 환경 변수를 광고 설정으로. `src/adsConsent.ts` 동의 순서(한 번만 돎). `src/bannerState.ts` 배너 보임 상태. `src/nativeAds.ts` 광고 모듈을 늦게 불러 호출을 잇는다. `src/AdBanner.tsx` 배너 화면.
 - `src/Shell.tsx` 웹뷰와 위 조각을 묶는다. `src/Offline.tsx`는 연결 실패 화면이다.
 
-순수 모듈(`config`, `navigation`, `host`, `reply`, `recovery`, `adsConfig`, `adsConsent`)만 루트 `npm test`가 시험한다. 이 시험은 `react-native`를 가져오지 않는다.
-`Shell.tsx`, `Offline.tsx`, `nativeHost.ts`, `nativeAds.ts`, `AdBanner.tsx`, `bannerState.ts`는 시험이 없다.
+순수 모듈(`config`, `navigation`, `host`, `notify`, `reply`, `recovery`, `adsConfig`, `adsConsent`)만 루트 `npm test`가 시험한다. 이 시험은 `react-native`를 가져오지 않는다.
+`Shell.tsx`, `Offline.tsx`, `nativeHost.ts`, `nativeNotify.ts`, `nativeAds.ts`, `AdBanner.tsx`, `bannerState.ts`는 시험이 없다.
 
 앱 식별자(`app.config.ts`의 `APP_IDENTIFIER`)는 자리표시 값 `app.example.yeongkk`다. 주인이 정하기 전에는 스토어용 빌드를 만들지 않는다.
 
@@ -96,6 +107,7 @@ npx expo prebuild
 
 - 웹이 앱 안에서 뜨는지, 첫 화면까지 걸리는 시간.
 - `injectedObjectJson()`이 두 OS에서 앱 정보를 주는지. 안 주면 웹이 `hello`로 묻는다.
+- 알림: 권한 창이 뜨는지, 월요일 9시에 실제로 오는지(안드로이드는 정확한 시각이 아니라 근사일 수 있다), 다시 눌러도 하나뿐인지, 끄면 안 오는지, 설정에서 껐을 때 `granted: false`가 오는지, 안드로이드 13 이상에서 권한 창이 채널을 만든 뒤 뜨는지, 알림을 누르면 앱이 열리는지, 없는 예약을 `cancel`해도 오류가 없는지.
 - 공유 창, 진동. 안드로이드는 공유 창을 닫아도 `completed: true`가 온다(RN이 닫음을 알려 주지 않는다).
 - 광고: 배너가 뜨는지(SDK 초기화 뒤), 동의창과 추적창 순서, 거부 뒤 비맞춤 요청, 숨길 때 자리가 사라지는지, 안전 영역. 이 맥에서는 `expo export`와 `expo prebuild`(복사본)로 설정이 적용되는 것까지만 봤다.
 - 노치와 홈 표시줄 아래로 내용이 들어가지 않는지. 앱이 안전 영역 여백을 주므로 웹의 `env(safe-area-inset-*)`는 0이어야 한다.
@@ -104,7 +116,7 @@ npx expo prebuild
 
 ## 일부러 아직 안 한 것
 
-- 알림(`notify`).
+- 알림 누르면 특정 화면 열기(딥링크), 알림 문구 바꾸기, 요일 · 시각 고르기. 서버 푸시.
 - EAS 빌드, 스토어 제출, OTA 업데이트.
 - 안드로이드 뒤로 가기 버튼 처리.
 - 아이콘과 스플래시.

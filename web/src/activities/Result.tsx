@@ -7,6 +7,7 @@ import { match } from "ts-pattern";
 import { visuallyHidden } from "../app/a11y.css";
 import { useAppData } from "../app/AppData";
 import { beginNewRound } from "../app/newRound";
+import { ReminderControl } from "../app/ReminderControl";
 import { ReportForm } from "../app/ReportForm";
 import { track } from "../app/services";
 import { quizAppBar, useBehind, useHeadingFocus, useQuizRoute, type QuizView } from "../app/screen";
@@ -121,6 +122,7 @@ function ResultBody({ view, leave }: { view: QuizView; leave(fn: () => void): vo
           <p className={q.shareUrl}>{note.copyable}</p>
         </div>
       )}
+      <ReminderControl />
       <div className={ui.footer}>
         <button ref={shareButtonRef} type="button" className={ui.button.primary} disabled={sharing} onClick={onShare}>
           공유하기

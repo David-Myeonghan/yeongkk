@@ -106,6 +106,14 @@
 - 한 판을 끝까지 풀면 점수와 점수대 문구 하나가 보이고, 그동안 서버가 아닌 곳으로 요청이 나가지 않는다. `web/e2e/round.spec.ts`
 - 같은 판의 `round_complete`는 처음 한 번만 보낸다. 저장소가 막혀도 이번 실행 동안은 한 번이다. `web/src/state/completed.test.ts`
 - 이벤트 서버가 응답하지 않아도 결과가 보이고 다시 할 수 있다. `web/e2e/round.spec.ts`
+- 앱 안에서만 「월요일에 알려 줄까요?」 버튼이 보인다. 앱에 `notify`가 없으면(일반 브라우저 · 옛 앱) 아무것도 보이지 않고 요청도 보내지 않는다. `web/src/platform/reminder.test.ts`, `web/e2e/round.spec.ts`
+- 처음 열 때 `status`로 묻는다. 이미 예약돼 있으면 「월요일에 알려 줄게요」와 끄는 버튼이 보이고, 끄면 `cancel`을 보내고 버튼이 돌아온다. 이때 권한을 묻지 않는다. `web/src/platform/reminder.test.ts`, `web/e2e/round.spec.ts`
+- 누르면 `schedule-weekly`를 보낸다. 권한 창을 기다리느라 이 호출만 60초까지 기다린다. `web/src/platform/reminder.test.ts`, `web/e2e/round.spec.ts`
+- 기기가 허용하지 않으면 「기기 설정에서 알림이 꺼져 있어요」 한 줄만 보이고 다시 묻지 않는다. `web/src/platform/reminder.test.ts`, `web/e2e/round.spec.ts`
+- 앱 호출이 실패하거나 시간이 지나거나 답 모양이 틀리면 버튼은 조용히 사라지고 결과 화면은 그대로 쓸 수 있다. `web/src/platform/reminder.test.ts`, `web/e2e/round.spec.ts`
+- 켜고 끈 결과를 스크린리더가 읽는다(live region)와 눌린 뒤 포커스가 남는 것. 테스트 없음
+- 앱 쪽: 알림은 매주 월요일 09:00(기기 현지 시각) 하나만 예약하고, 다시 예약하기 전에 이전 것을 지운다. `status`는 권한을 묻지 않는다. 허용하지 않으면 예약하지 않는다. 모르는 요청은 `BAD_REQUEST`, 기기 호출이 던지거나 네이티브 모듈이 없으면 `FAILED`다. `app/src/notify.test.ts`. 실제 기기에서의 동작: 테스트 없음
+- 이 기능을 위한 분석 이벤트는 없다.
 - 다시 하기는 새 판, 처음으로는 홈. 테스트 없음
 - 제보 칸은 설정이 켜졌을 때만 보인다(테스트 없음). 보내는 쪽은 10초 안에 안 끝나면 실패로 본다(`web/src/telemetry/report.test.ts`). 받는 쪽은 주소 · 전화번호 · @아이디 모양을 거절하고 하루 20건까지 받는다(`api/src/reports.test.ts`). 조합 중인 엔터는 보내지 않는다(`web/src/app/imeEnter.test.ts`).
 

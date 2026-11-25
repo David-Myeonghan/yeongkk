@@ -191,6 +191,8 @@ export const shareUrl = style({
   wordBreak: "break-all",
 });
 
+export const reminder = style({ display: "flex", flexDirection: "column", gap: vars.space.sm, marginTop: vars.space.lg, outline: "none" });
+
 export const report = style({ display: "flex", flexDirection: "column", gap: vars.space.sm });
 
 export const reportRow = style({ display: "flex", gap: vars.space.sm, alignItems: "stretch" });

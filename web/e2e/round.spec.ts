@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import { PROTOCOL_VERSION } from "../../bridge/protocol";
 import { RESULT_COPY } from "../../quiz-core/score";
 import { stubNetwork, type StubNetworkOptions } from "./support";
 
@@ -66,6 +67,7 @@ test("한 판을 끝까지", async ({ context, page }) => {
   await expect(page.getByText(new RegExp(`^\\d+ / ${TOTAL}$`))).toBeVisible();
   const tier = new RegExp(`^(${TIER_LINES.join("|")})$`);
   await expect(page.getByText(tier)).toBeVisible();
+  await expect(page.getByRole("button", { name: /월요일/ })).toHaveCount(0);
   expect(outside).toEqual([]);
 });
 
@@ -151,5 +153,82 @@ test.describe("공유", () => {
     expect(copied).toContain("점 — ");
     expect(copied).toContain("/?r=");
     expect(outside).toEqual([]);
+  });
+});
+
+// 앱 껍데기를 흉내 낸다. 웹이 보내는 notify 요청을 window.__notifyCalls 에 쌓고, 정해 둔 대로 답한다.
+type FakeApp = { grantOnSchedule: boolean; statusFails?: boolean; scheduled?: boolean };
+
+const fakeAppScript = (app: FakeApp) => `(() => {
+  const app = ${JSON.stringify(app)};
+  const calls = [];
+  window.__notifyCalls = calls;
+  const info = { protocol: ${PROTOCOL_VERSION}, appVersion: "0.0.0", platform: "ios", capabilities: { notify: 1 } };
+  const send = (id, ok, result) => setTimeout(() => window.__YK_BRIDGE__.receive(JSON.stringify(
+    ok ? { v: ${PROTOCOL_VERSION}, kind: "response", id, ok, result } : { v: ${PROTOCOL_VERSION}, kind: "response", id, ok, error: { code: "FAILED" } })), 0);
+  window.ReactNativeWebView = {
+    injectedObjectJson: () => JSON.stringify(info),
+    postMessage: (raw) => {
+      const msg = JSON.parse(raw);
+      if (msg.name !== "notify") return send(msg.id, false);
+      const action = msg.payload.action;
+      calls.push(action);
+      if (action === "status" && app.statusFails) return send(msg.id, false);
+      if (action === "schedule-weekly") app.scheduled = app.grantOnSchedule;
+      if (action === "cancel") app.scheduled = false;
+      send(msg.id, true, { granted: app.grantOnSchedule, scheduled: Boolean(app.scheduled) });
+    },
+  };
+})();`;
+
+const notifyCalls = (page: Page) => page.evaluate(() => (window as unknown as { __notifyCalls: string[] }).__notifyCalls);
+
+test.describe("월요일 알림", () => {
+  test("켜고 끈다", async ({ context, page }) => {
+    test.slow();
+    await context.addInitScript(fakeAppScript({ grantOnSchedule: true }));
+    const { outside } = await open(context, page);
+    await playRound(page);
+
+    await page.getByRole("button", { name: "월요일에 알려 줄까요?" }).click();
+    await expect(page.getByRole("paragraph").filter({ hasText: "월요일에 알려 줄게요" })).toBeVisible();
+    await page.getByRole("button", { name: "알림 끄기" }).click();
+    await expect(page.getByRole("button", { name: "월요일에 알려 줄까요?" })).toBeVisible();
+    expect(await notifyCalls(page)).toEqual(["status", "schedule-weekly", "cancel"]);
+    expect(outside).toEqual([]);
+  });
+
+  test("이미 켜져 있으면 켜진 상태로 보인다", async ({ context, page }) => {
+    test.slow();
+    await context.addInitScript(fakeAppScript({ grantOnSchedule: true, scheduled: true }));
+    await open(context, page);
+    await playRound(page);
+
+    await expect(page.getByRole("paragraph").filter({ hasText: "월요일에 알려 줄게요" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "월요일에 알려 줄까요?" })).toHaveCount(0);
+  });
+
+  test("허용하지 않으면 설정 안내만 보이고 다시 묻지 않는다", async ({ context, page }) => {
+    test.slow();
+    await context.addInitScript(fakeAppScript({ grantOnSchedule: false }));
+    await open(context, page);
+    await playRound(page);
+
+    await page.getByRole("button", { name: "월요일에 알려 줄까요?" }).click();
+    await expect(page.getByRole("paragraph").filter({ hasText: "기기 설정에서 알림이 꺼져 있어요" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /월요일/ })).toHaveCount(0);
+    expect(await notifyCalls(page)).toEqual(["status", "schedule-weekly"]);
+  });
+
+  test("앱이 status 에 실패하면 조용히 없다", async ({ context, page }) => {
+    test.slow();
+    await context.addInitScript(fakeAppScript({ grantOnSchedule: true, statusFails: true }));
+    await open(context, page);
+    await playRound(page);
+
+    await expect(page.getByRole("button", { name: "공유하기" })).toBeVisible();
+    await expect.poll(() => notifyCalls(page)).toEqual(["status"]);
+    await expect(page.getByRole("button", { name: /월요일/ })).toHaveCount(0);
+    await expect(page.getByText(/알림/)).toHaveCount(0);
   });
 });

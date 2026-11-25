@@ -106,7 +106,7 @@ Expo Go: 문서에 따르면 로컬 알림은 Expo Go에서 된다. 원격 푸�
 - `APP_IDENTIFIER` iOS 번들 아이디와 안드로이드 패키지 이름. 이 한 곳에서만 정한다. 비우면 자리표시 `app.example.yeongkk`.
 - `EXPO_PUBLIC_WEB_URL` 앱이 여는 웹 주소.
 - `EAS_PROJECT_ID` `eas init`이 알려 주는 UUID. 있으면 `extra.eas.projectId`로 들어간다. 앱 설정이 코드라서 `eas init`은 파일에 자동으로 못 쓴다.
-- `APP_PROFILE` 프로필 이름. `eas.json`이 프로필마다 준다. 클라우드 빌드 서버는 `EAS_BUILD_PROFILE`을 직접 주지만, 내 컴퓨터에서 설정을 읽을 때는 이 값이 있어야 같은 검사가 돈다.
+- `APP_PROFILE` 프로필 이름. `eas.json`이 프로필마다 준다. 클라우드 빌드 서버는 `EAS_BUILD_PROFILE`을 직접 준다. `eas build`가 내 컴퓨터에서 설정을 읽을 때는 프로필 `env`가 합쳐지므로 이 값으로 같은 검사가 돈다. `eas submit`은 프로필 `env`를 읽지 않는다(eas-cli 27.11.0 소스를 읽었고 돌려 보지는 않았다). 제출할 때는 명령 앞에 변수를 직접 붙인다(`../docs/release.md` 8단계 3번). 이 README의 명령 중 `eas`를 돌려 본 것은 하나도 없다.
 
 `src/releaseCheck.ts`가 검사한다. 순수 모듈이고 `app.config.ts`가 부른다. `production`(그리고 `development`, `preview`가 아닌 모든 이름)에서는 아래를 모두 모아 오류 하나로 낸다.
 

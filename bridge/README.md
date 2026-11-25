@@ -58,10 +58,12 @@
 | `share` | 1 | `{ title?, text?, url? }` → `{ completed: boolean }` |
 | `haptics` | 1 | `{ kind: "success" \| "error" }` |
 | `notify` | 1 | `{ action: "status" \| "request" \| "schedule-weekly" \| "cancel" }` → `{ granted: boolean }` |
-| `ads` | 1 | `{ visible: boolean }` |
+| `ads` | 1 | `{ visible: boolean }` → `{ visible: boolean }` (실제로 적용된 상태) |
 | `offline` | - | 자리만, 아직 정의 안 함 |
 
-지금 앱 쪽 처리기가 있는 것은 `share`와 `haptics`뿐이다(`app/src/host.ts`). 둘 다 실제 기기에서는 돌려 본 적이 없다. `notify`와 `ads`는 규약상의 약속일 뿐 처리기가 없다.
+지금 앱 쪽 처리기가 있는 것은 `share`, `haptics`, `ads`뿐이다(`app/src/host.ts`). 모두 실제 기기에서는 돌려 본 적이 없다. `notify`는 규약상의 약속일 뿐 처리기가 없다.
+
+`ads`는 광고를 넣어 빌드한 앱에만 기능표에 나타난다(`app/README.md`의 「광고」). 웹은 `has("ads", 1)`이 참일 때만 부르고, 원격 설정 `features.ads` 값을 `visible`로 보낸다. 배너는 `visible: true`를 처음 받을 때 동의(UMP, iOS는 추적 허용창까지)를 거친 뒤에 뜨고, 동의 흐름이 끝나지 않으면 `{ visible: false }`로 답한다.
 
 공유는 `share(bridge, data, env)`가 앱, 웹 공유, 복사 순으로 대신한다.
 앱 공유 호출은 공유 창이 열려 있는 동안을 기다리느라 60초까지 기다린다. 이때 `TIMEOUT`이면 창이 이미 떠 있을 가능성이 크므로 두 번째 창을 열거나 몰래 복사하지 않고 `{ via: "native", completed: false }`로 끝낸다. 그 밖의 앱 호출 실패(`UNSUPPORTED`, `FAILED`, `NO_HOST`, `BAD_REQUEST`, `BridgeError`가 아닌 오류)는 다음으로 넘어간다. 사용자가 웹 공유 창을 닫으면(`AbortError`) 거기서 끝내고 복사로 넘어가지 않는다.

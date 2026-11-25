@@ -28,6 +28,34 @@
 `EXPO_PUBLIC_WEB_URL`을 비우면 `http://localhost:8787`을 연다. 폰에서는 이 주소가 폰 자신을 가리키므로 열리지 않는다.
 주소가 `http://` 또는 `https://`로 시작하지 않으면 앱이 시작할 때 오류를 낸다.
 
+## 광고
+
+광고는 빌드할 때 고르는 선택 사항이다. 아무것도 안 하면 광고 코드가 도는 길이 없고 앱은 전과 같다. Expo Go도 그대로 된다.
+
+켜려면 빌드 환경 변수 둘을 모두 준다. 하나라도 없거나 `ca-app-pub-숫자16~숫자10` 모양이 아니면 꺼진 채로 만든다.
+
+- `ADMOB_IOS_APP_ID`, `ADMOB_ANDROID_APP_ID` 앱 아이디. 있으면 `app.config.ts`가 `react-native-google-mobile-ads`와 `expo-tracking-transparency` 플러그인, iOS 추적 문구(`NSUserTrackingUsageDescription`)를 넣는다.
+- `EXPO_PUBLIC_ADMOB_IOS_BANNER_ID`, `EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID` 배너 단위 아이디(`ca-app-pub-숫자16/숫자10`). 개발 빌드에서 비우면 구글 시험용 단위 아이디를 쓴다. 배포 빌드에서 비우면 배너를 띄우지 않는다.
+
+구글 시험용 아이디(주인의 진짜 아이디가 아니다). 출처는 구글 AdMob 빠른 시작과 시험 광고 문서다.
+
+- iOS 앱 `ca-app-pub-3940256099942544~1458002511`, 배너 `ca-app-pub-3940256099942544/2435281174`
+- 안드로이드 앱 `ca-app-pub-3940256099942544~3347511713`, 배너 `ca-app-pub-3940256099942544/9214589741`
+
+예(개발 빌드):
+
+```
+ADMOB_IOS_APP_ID=ca-app-pub-3940256099942544~1458002511 \
+ADMOB_ANDROID_APP_ID=ca-app-pub-3940256099942544~3347511713 \
+npx expo prebuild
+```
+
+광고 모듈은 네이티브 코드라 Expo Go에서 못 돈다. 광고를 넣은 빌드는 개발 빌드나 배포 빌드여야 한다. Expo Go에서 환경 변수를 줘도 모듈을 불러오지 못해 배너 없이 `{ visible: false }`로 답한다.
+
+동작: 배너는 웹뷰 아래, 안전 영역 안에 놓이고, 숨겨져 있으면 자리를 차지하지 않는다. 웹이 `ads`(`{ visible: true }`)를 부를 때까지 숨겨져 있다. 처음 보일 때 UMP 동의, iOS는 이어서 추적 허용창을 띄운다. 거부하거나 추적창이 실패하면 비맞춤 광고만 요청한다. 동의 흐름 자체가 끝나지 않으면 배너를 띄우지 않는다. 앱을 켤 때는 동의와 관련된 어떤 것도 돌지 않는다. 지금 원격 설정은 `ads: false`라 배너는 뜨지 않는다.
+
+스토어 심사 때 볼 것: iOS 개인정보 영양 표시와 추적 문구, 안드로이드 데이터 보안 양식과 `AD_ID` 권한(플러그인이 더한다), 광고 식별자 사용 신고.
+
 ## 코드 지도
 
 - `src/config.ts` 웹 주소(`WEB_URL`)와 출처(`WEB_ORIGIN`).
@@ -35,10 +63,11 @@
 - `src/host.ts` 웹이 부르는 `share`, `haptics` 처리기. 기기 호출은 밖에서 받는다.
 - `src/nativeHost.ts` 그 기기 호출을 실제 `Share`, `expo-haptics`에 잇는다.
 - `src/reply.ts` 앱의 답을 웹에 주입할 스크립트로 만든다.
+- `src/adsConfig.ts` 환경 변수를 광고 설정으로. `src/adsConsent.ts` 동의 순서(한 번만 돎). `src/bannerState.ts` 배너 보임 상태. `src/nativeAds.ts` 광고 모듈을 늦게 불러 호출을 잇는다. `src/AdBanner.tsx` 배너 화면.
 - `src/Shell.tsx` 웹뷰와 위 조각을 묶는다. `src/Offline.tsx`는 연결 실패 화면이다.
 
-순수 모듈(`config`, `navigation`, `host`, `reply`)만 루트 `npm test`가 시험한다. 이 시험은 `react-native`를 가져오지 않는다.
-`Shell.tsx`, `Offline.tsx`, `nativeHost.ts`는 시험이 없다.
+순수 모듈(`config`, `navigation`, `host`, `reply`, `recovery`, `adsConfig`, `adsConsent`)만 루트 `npm test`가 시험한다. 이 시험은 `react-native`를 가져오지 않는다.
+`Shell.tsx`, `Offline.tsx`, `nativeHost.ts`, `nativeAds.ts`, `AdBanner.tsx`, `bannerState.ts`는 시험이 없다.
 
 앱 식별자(`app.config.ts`의 `APP_IDENTIFIER`)는 자리표시 값 `app.example.yeongkk`다. 주인이 정하기 전에는 스토어용 빌드를 만들지 않는다.
 
@@ -56,13 +85,14 @@
 - 웹이 앱 안에서 뜨는지, 첫 화면까지 걸리는 시간.
 - `injectedObjectJson()`이 두 OS에서 앱 정보를 주는지. 안 주면 웹이 `hello`로 묻는다.
 - 공유 창, 진동. 안드로이드는 공유 창을 닫아도 `completed: true`가 온다(RN이 닫음을 알려 주지 않는다).
+- 광고: 배너가 뜨는지, 동의창과 추적창 순서, 거부 뒤 비맞춤 요청, 숨길 때 자리가 사라지는지, 안전 영역. 이 맥에서는 `expo export`와 `expo prebuild`(복사본)로 설정이 적용되는 것까지만 봤다.
 - 노치와 홈 표시줄 아래로 내용이 들어가지 않는지. 앱이 안전 영역 여백을 주므로 웹의 `env(safe-area-inset-*)`는 0이어야 한다.
 - 오프라인 화면, 웹뷰 프로세스가 죽은 뒤 다시 불러오기, 앱이 앞으로 돌아올 때의 `resume` 이벤트.
 - 외부 링크가 브라우저로 열리는지.
 
 ## 일부러 아직 안 한 것
 
-- 광고, 알림(`notify`, `ads`).
+- 알림(`notify`).
 - EAS 빌드, 스토어 제출, OTA 업데이트.
 - 안드로이드 뒤로 가기 버튼 처리.
 - 아이콘과 스플래시.

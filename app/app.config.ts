@@ -1,13 +1,15 @@
 import type { ExpoConfig } from "expo/config";
 import pkg from "./package.json";
-import { parseAdsConfig } from "./src/adsConfig.ts";
+import { ADS_MODULE, resolveAdsConfig } from "./src/adsConfig.ts";
 
 // 자리표시 값이다. 주인이 정하기 전에는 스토어용 빌드를 만들지 않는다.
 const APP_IDENTIFIER = "app.example.yeongkk";
 
 const ADS_TRACKING_TEXT = "맞는 광고를 보여 주려고 이 기기의 광고 식별자를 사용해요. 허용하지 않아도 앱은 똑같이 쓸 수 있어요.";
 
-const ads = parseAdsConfig(process.env);
+const expoField: { autolinking?: { exclude?: readonly string[] } } = pkg.expo;
+const excluded = expoField.autolinking?.exclude ?? [];
+const ads = resolveAdsConfig(process.env, { nativeModuleExcluded: excluded.includes(ADS_MODULE) });
 
 const plugins: NonNullable<ExpoConfig["plugins"]> = ads.enabled
   ? [

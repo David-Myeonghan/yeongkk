@@ -1,38 +1,58 @@
 import { describe, expect, it } from "vitest";
-import { adsFromExtra, bannerUnitId, GOOGLE_TEST_IDS, parseAdsConfig } from "./adsConfig";
+import { adsFromExtra, AdsSettingsError, bannerUnitId, GOOGLE_TEST_IDS, resolveAdsConfig } from "./adsConfig";
 
 const IOS_APP = "ca-app-pub-3940256099942544~1458002511";
 const ANDROID_APP = "ca-app-pub-3940256099942544~3347511713";
 const OWN_UNIT = "ca-app-pub-1111111111111111/2222222222";
 const base = { ADMOB_IOS_APP_ID: IOS_APP, ADMOB_ANDROID_APP_ID: ANDROID_APP };
 
-describe("parseAdsConfig", () => {
-  it("아이디가 없으면 꺼진다 (뜻: 기본이 켜짐이면 잡힘)", () => {
-    expect(parseAdsConfig({})).toEqual({ enabled: false });
+const IN = { nativeModuleExcluded: false };
+const OUT = { nativeModuleExcluded: true };
+const inBuild = (env: Record<string, string | undefined>) => resolveAdsConfig(env, IN);
+
+describe("resolveAdsConfig — 네 경우", () => {
+  it("제외 + 아이디 없음 → 꺼짐 (기본 상태) (뜻: 기본이 켜짐이면 잡힘)", () => {
+    expect(resolveAdsConfig({}, OUT)).toEqual({ enabled: false });
+    expect(resolveAdsConfig({ ADMOB_IOS_APP_ID: " ", ADMOB_ANDROID_APP_ID: "" }, OUT)).toEqual({ enabled: false });
   });
 
-  it("한쪽 앱 아이디만 있으면 꺼진다 (뜻: || 로 판정하면 잡힘)", () => {
-    expect(parseAdsConfig({ ADMOB_IOS_APP_ID: IOS_APP })).toEqual({ enabled: false });
-    expect(parseAdsConfig({ ADMOB_ANDROID_APP_ID: ANDROID_APP })).toEqual({ enabled: false });
+  it("포함 + 아이디 없음 → 오류, 시작하자마자 죽는다는 안내 (뜻: 조용히 통과시키면 잡힘)", () => {
+    expect(() => resolveAdsConfig({}, IN)).toThrow(AdsSettingsError);
+    expect(() => resolveAdsConfig({}, IN)).toThrow(/시작하자마자 죽어요/);
   });
 
-  it("둘 다 있으면 켜진다", () => {
-    expect(parseAdsConfig(base)).toEqual({ enabled: true, iosAppId: IOS_APP, androidAppId: ANDROID_APP });
+  it("제외 + 아이디 있음 → 오류, 광고 코드가 없다는 안내 (뜻: 조용히 꺼 두면 잡힘)", () => {
+    expect(() => resolveAdsConfig(base, OUT)).toThrow(AdsSettingsError);
+    expect(() => resolveAdsConfig(base, OUT)).toThrow(/광고 코드가 빌드에 없어요/);
   });
 
-  it("앞뒤 공백은 자른다 · 빈 글자는 없는 것 (뜻: trim 을 빼면 잡힘)", () => {
-    expect(parseAdsConfig({ ADMOB_IOS_APP_ID: ` ${IOS_APP}\n`, ADMOB_ANDROID_APP_ID: ANDROID_APP }).enabled).toBe(true);
-    expect(parseAdsConfig({ ADMOB_IOS_APP_ID: "  ", ADMOB_ANDROID_APP_ID: ANDROID_APP }).enabled).toBe(false);
+  it("포함 + 올바른 아이디 → 켜짐", () => {
+    expect(resolveAdsConfig(base, IN)).toEqual({ enabled: true, iosAppId: IOS_APP, androidAppId: ANDROID_APP });
   });
+});
 
-  it("앱 아이디 모양이 틀리면 꺼진다 (뜻: 검증을 빼면 잡힘)", () => {
-    for (const bad of ["x", "ca-app-pub-3940256099942544/1458002511", "ca-app-pub-123~456", `${IOS_APP}x`]) {
-      expect(parseAdsConfig({ ADMOB_IOS_APP_ID: bad, ADMOB_ANDROID_APP_ID: ANDROID_APP })).toEqual({ enabled: false });
+describe("resolveAdsConfig — 아이디 검증", () => {
+  it("한쪽만 있으면 오류 (제외든 포함이든) (뜻: 한쪽만으로 켜면 잡힘)", () => {
+    for (const opts of [IN, OUT]) {
+      expect(() => resolveAdsConfig({ ADMOB_IOS_APP_ID: IOS_APP }, opts)).toThrow(AdsSettingsError);
+      expect(() => resolveAdsConfig({ ADMOB_ANDROID_APP_ID: ANDROID_APP }, opts)).toThrow(AdsSettingsError);
     }
   });
 
+  it("모양이 틀린 아이디는 오류 (조용히 끄지 않는다) (뜻: 검증을 빼거나 무시하면 잡힘)", () => {
+    for (const bad of ["x", "ca-app-pub-3940256099942544/1458002511", "ca-app-pub-123~456", `${IOS_APP}x`]) {
+      for (const opts of [IN, OUT]) {
+        expect(() => resolveAdsConfig({ ADMOB_IOS_APP_ID: bad, ADMOB_ANDROID_APP_ID: ANDROID_APP }, opts)).toThrow(/모양이 틀려요/);
+      }
+    }
+  });
+
+  it("앞뒤 공백은 자른다 (뜻: trim 을 빼면 잡힘)", () => {
+    expect(inBuild({ ADMOB_IOS_APP_ID: ` ${IOS_APP}\n`, ADMOB_ANDROID_APP_ID: ANDROID_APP }).enabled).toBe(true);
+  });
+
   it("배너 단위 아이디는 모양이 맞을 때만 받는다 (뜻: 앱 아이디 모양을 단위에 쓰면 잡힘)", () => {
-    const cfg = parseAdsConfig({
+    const cfg = inBuild({
       ...base,
       EXPO_PUBLIC_ADMOB_IOS_BANNER_ID: ` ${OWN_UNIT} `,
       EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID: "ca-app-pub-1111111111111111~2222222222",
@@ -42,7 +62,7 @@ describe("parseAdsConfig", () => {
 });
 
 describe("bannerUnitId", () => {
-  const cfg = parseAdsConfig(base);
+  const cfg = inBuild(base);
   it("개발 빌드에 단위 아이디가 없으면 구글 시험용 (뜻: 시험용을 안 쓰면 잡힘)", () => {
     expect(bannerUnitId(cfg, "ios", true)).toBe(GOOGLE_TEST_IDS.iosBanner);
     expect(bannerUnitId(cfg, "android", true)).toBe(GOOGLE_TEST_IDS.androidBanner);
@@ -52,7 +72,7 @@ describe("bannerUnitId", () => {
     expect(bannerUnitId(cfg, "android", false)).toBeNull();
   });
   it("있으면 개발이든 배포든 그 값", () => {
-    const own = parseAdsConfig({ ...base, EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID: OWN_UNIT });
+    const own = inBuild({ ...base, EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID: OWN_UNIT });
     expect(bannerUnitId(own, "android", true)).toBe(OWN_UNIT);
     expect(bannerUnitId(own, "android", false)).toBe(OWN_UNIT);
   });
@@ -64,7 +84,7 @@ describe("bannerUnitId", () => {
 
 describe("adsFromExtra", () => {
   it("앱 설정의 extra.ads 를 다시 검증해 읽는다", () => {
-    expect(adsFromExtra({ ads: parseAdsConfig(base) })).toEqual(parseAdsConfig(base));
+    expect(adsFromExtra({ ads: inBuild(base) })).toEqual(inBuild(base));
   });
   it("없거나 이상하면 꺼진다 (뜻: 런타임이 extra 를 믿고 켜면 잡힘)", () => {
     const bad = [undefined, null, {}, { ads: null }, { ads: { enabled: true } }, { ads: { enabled: true, iosAppId: "x", androidAppId: "y" } }];

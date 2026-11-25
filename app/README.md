@@ -30,9 +30,19 @@
 
 ## 광고
 
-광고는 빌드할 때 고르는 선택 사항이다. 아무것도 안 하면 광고 코드가 도는 길이 없고 앱은 전과 같다. Expo Go도 그대로 된다.
+광고는 빌드할 때 고르는 선택 사항이다. 기본 상태는 꺼짐이다. `app/package.json`의 `expo.autolinking.exclude`에 `react-native-google-mobile-ads`가 들어 있어서, 기본 빌드에는 광고 SDK가 두 OS 모두에 아예 들어가지 않는다. Expo Go도 그대로 된다.
 
-켜려면 빌드 환경 변수 둘을 모두 준다. 하나라도 없거나 `ca-app-pub-숫자16~숫자10` 모양이 아니면 꺼진 채로 만든다.
+광고를 넣는 빌드는 스위치 둘을 함께 켠다.
+
+1. `app/package.json`의 `expo.autolinking.exclude`에서 `react-native-google-mobile-ads`를 뺀다.
+2. 아래 AdMob 앱 아이디 환경 변수 둘을 모두 준다.
+
+`app.config.ts`가 둘이 맞는지 설정을 읽을 때 검사하고, 어긋나면 빌드를 멈춘다. 안드로이드 광고 SDK는 앱 아이디가 없으면 시작할 때 죽는다고 구글이 적었다(「Missing application ID.」).
+
+- 제외를 뺐는데 앱 아이디가 없다 -> 오류. 이대로 만들면 앱이 시작하자마자 죽는다.
+- 앱 아이디를 줬는데 제외가 남아 있다 -> 오류. 광고를 켠 줄 알겠지만 광고 코드가 빌드에 없다.
+- 앱 아이디 하나만 있거나 모양이 틀리다 -> 오류. 조용히 끄지 않는다.
+- 제외가 있고 아이디가 없다 -> 광고 꺼짐(기본). 둘 다 있다 -> 광고 켜짐.
 
 - `ADMOB_IOS_APP_ID`, `ADMOB_ANDROID_APP_ID` 앱 아이디. 있으면 `app.config.ts`가 `react-native-google-mobile-ads`와 `expo-tracking-transparency` 플러그인, iOS 추적 문구(`NSUserTrackingUsageDescription`)를 넣는다.
 - `EXPO_PUBLIC_ADMOB_IOS_BANNER_ID`, `EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID` 배너 단위 아이디(`ca-app-pub-숫자16/숫자10`). 개발 빌드에서 비우면 구글 시험용 단위 아이디를 쓴다. 배포 빌드에서 비우면 배너를 띄우지 않는다.
@@ -77,6 +87,8 @@ npx expo prebuild
 허용 검사는 앞 글자만 보므로, 웹 출처로 시작하는 다른 호스트(`https://웹출처.evil.com`)는 통과한다. 이것만 `navigation.ts`가 다시 걸러 기기 브라우저로 보낸다.
 
 ## 확인하지 못한 것
+
+광고를 넣은 빌드든 아니든, 어떤 빌드도 실제 기기에서 돌려 본 적이 없다. 광고를 넣은 첫 빌드는 스토어에 내기 전에 반드시 실제 폰에서 먼저 돌려 본다. 제외 목록 방식이 두 OS의 빌드에서 SDK를 정말 빼는지는 자동 연결(autolinking) 목록으로만 확인했고, Gradle과 CocoaPods 빌드는 돌리지 않았다.
 
 이 앱은 실제 폰이나 시뮬레이터에서 한 번도 돌려 보지 않았다. 이 맥에는 Xcode가 없다.
 확인한 것은 타입 검사, 순수 모듈 시험, Metro 번들 만들기(`npx expo export`), `expo-doctor`뿐이다.

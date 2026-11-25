@@ -24,6 +24,7 @@
     "react-native-webview": "14.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@types/react": "~19.3.0"
   },
   "expo": {

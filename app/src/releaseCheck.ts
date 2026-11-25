@@ -1,4 +1,6 @@
-import { PRIVACY_CONTACT_PLACEHOLDER } from "../../tools/privacy/contact.ts";
+import { PRIVACY_CONTACT_PLACEHOLDER, isPlaceholderContact } from "../../tools/privacy/contact.ts";
+import { present } from "./adsConfig.ts";
+import { originOf } from "./navigation.ts";
 
 export const PLACEHOLDER_IDENTIFIER = "app.example.yeongkk";
 
@@ -27,14 +29,9 @@ const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
 
 export const isValidIdentifier = (id: string): boolean => IDENTIFIER.test(id);
 
-const blank = (raw: string | undefined): boolean => raw === undefined || raw.trim() === "";
-
-function parseUrl(raw: string): URL | null {
-  try {
-    return new URL(raw.trim());
-  } catch {
-    return null;
-  }
+function hostOf(origin: string): string {
+  const authority = origin.slice(origin.indexOf("//") + 2);
+  return authority.startsWith("[") ? authority : authority.replace(/:\d+$/, "");
 }
 
 function storeHostProblem(host: string): string | null {
@@ -45,15 +42,17 @@ function storeHostProblem(host: string): string | null {
   return null;
 }
 
+// 앱이 실제로 여는 주소 해석(originOf)을 그대로 쓴다. 지킴과 앱이 다르게 읽으면 빌드는 되는데 앱이 켜지자마자 죽는다.
 function urlProblems(raw: string | undefined, level: Level): string[] {
   const hint = "EXPO_PUBLIC_WEB_URL";
-  if (raw === undefined || blank(raw)) return [`${hint} 가 비어 있어요. 앱이 열 웹 주소(https://…)를 주세요.`];
-  const url = parseUrl(raw);
-  if (url === null || url.protocol !== "https:") {
-    return [`${hint} 는 https:// 로 시작하는 올바른 주소여야 해요. 받은 값: ${JSON.stringify(raw)}`];
+  const text = present(raw)?.trim();
+  if (text === undefined) return [`${hint} 가 비어 있어요. 앱이 열 웹 주소(https://…)를 주세요.`];
+  const origin = originOf(text);
+  if (origin === null || !origin.startsWith("https://")) {
+    return [`${hint} 는 https:// 로 시작하고 앱이 읽을 수 있는 주소여야 해요(영문 소문자 · 숫자 · - · . 만. 한글 도메인은 punycode xn-- 로). 받은 값: ${JSON.stringify(raw)}`];
   }
   if (level !== "store") return [];
-  const why = storeHostProblem(url.hostname);
+  const why = storeHostProblem(hostOf(origin));
   if (why === null) return [];
   return [`${hint} 가 주인의 도메인이 아니에요(${why}). 설치된 앱 안의 주소는 바꿀 수 없으니 주인의 도메인을 쓰세요. 받은 값: ${JSON.stringify(raw)}`];
 }
@@ -73,8 +72,8 @@ export function releaseProblems(input: ReleaseInput): string[] {
   if (level === "none") return [];
   const found = [...identifierProblems(input.identifier, level), ...urlProblems(input.webUrl, level)];
   if (level === "store") {
-    if (blank(input.projectId)) found.push("EAS_PROJECT_ID 가 없어요. `eas init` 으로 만든 프로젝트 아이디를 주세요.");
-    if (blank(input.privacyContact) || input.privacyContact.trim() === PRIVACY_CONTACT_PLACEHOLDER) {
+    if (present(input.projectId) === undefined) found.push("EAS_PROJECT_ID 가 없어요. `eas init` 으로 만든 프로젝트 아이디를 주세요.");
+    if (isPlaceholderContact(input.privacyContact)) {
       found.push(`개인정보 문의처가 자리표시(${PRIVACY_CONTACT_PLACEHOLDER}) 그대로예요. tools/privacy/contact.ts 를 고치고 npm run privacy 를 돌리세요.`);
     }
   }

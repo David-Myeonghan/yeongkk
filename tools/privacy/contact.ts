@@ -2,3 +2,5 @@
 export const PRIVACY_CONTACT_PLACEHOLDER = "PRIVACY_CONTACT_PLACEHOLDER";
 
 export const PRIVACY_CONTACT = PRIVACY_CONTACT_PLACEHOLDER;
+
+export const isPlaceholderContact = (contact: string): boolean => contact.trim() === "" || contact.trim() === PRIVACY_CONTACT_PLACEHOLDER;

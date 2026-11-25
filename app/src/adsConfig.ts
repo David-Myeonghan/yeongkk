@@ -37,7 +37,7 @@ export const ADS_MODULE = "react-native-google-mobile-ads";
 
 export class AdsSettingsError extends Error {}
 
-const present = (raw: string | undefined): string | undefined => (raw === undefined || raw.trim() === "" ? undefined : raw);
+export const present = (raw: string | undefined): string | undefined => (raw === undefined || raw.trim() === "" ? undefined : raw);
 
 export function resolveAdsConfig(env: AdsEnv, opts: { nativeModuleExcluded: boolean }): AdsConfig {
   const rawIos = present(env.ADMOB_IOS_APP_ID);

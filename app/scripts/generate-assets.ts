@@ -2,10 +2,10 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
+import { THEME } from "../src/theme";
 
-// 웹 테마(web/src/styles/theme.css.ts)의 포인트 색과 글자색.
-const ACCENT = "#5432e6";
-const ON_ACCENT = "#ffffff";
+const ACCENT = THEME.light.accent;
+const ON_ACCENT = THEME.light.onAccent;
 const SIZE = 1024;
 const NAME = "뭔말";
 

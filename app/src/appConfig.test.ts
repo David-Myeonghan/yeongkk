@@ -11,7 +11,7 @@ async function load(env: Record<string, string>, contact?: string) {
   vi.resetModules();
   vi.doUnmock("../../tools/privacy/contact");
   if (contact !== undefined) {
-    vi.doMock("../../tools/privacy/contact", () => ({ PRIVACY_CONTACT: contact, PRIVACY_CONTACT_PLACEHOLDER: "PRIVACY_CONTACT_PLACEHOLDER" }));
+    vi.doMock("../../tools/privacy/contact", async (importOriginal) => ({ ...(await importOriginal<object>()), PRIVACY_CONTACT: contact }));
   }
   for (const key of ["EAS_BUILD_PROFILE", "APP_PROFILE", "APP_IDENTIFIER", "EXPO_PUBLIC_WEB_URL", "EAS_PROJECT_ID"]) vi.stubEnv(key, "");
   for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
@@ -42,7 +42,7 @@ describe("app.config.ts", () => {
   });
 
   it("production 은 다른 값이 다 맞아도 문의처가 자리표시면 멈춘다", async () => {
-    await expect(load(VALID)).rejects.toThrow(/PRIVACY_CONTACT_PLACEHOLDER/);
+    await expect(load(VALID, "PRIVACY_CONTACT_PLACEHOLDER")).rejects.toThrow(/PRIVACY_CONTACT_PLACEHOLDER/);
   });
 
   it("production 값이 맞으면 식별자 · 프로젝트 아이디 · 아이콘 · 암호화 신고가 들어간다", async () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PRIVACY_CONTACT_PLACEHOLDER } from "../../tools/privacy/contact";
+import { parseWebUrl } from "./config";
 import {
   PLACEHOLDER_IDENTIFIER,
   ReleaseSettingsError,
@@ -55,6 +56,24 @@ describe("production: 한 규칙씩", () => {
     expect(problems({ webUrl })).toHaveLength(1);
   });
 
+  it.each(["https://뭔말이야.kr", "https:/quiz.example.com", "https://my_quiz.example.com", "https://x.workers.dev."])(
+    "앱이 못 읽거나(originOf 가 null) 끝 점으로 빠져나가는 주소도 막는다: %s",
+    (webUrl) => {
+      expect(problems({ webUrl })).toHaveLength(1);
+    },
+  );
+
+  it.each(["https://뭔말이야.kr", "https:/quiz.example.com", "https://my_quiz.example.com"])("preview 도 앱이 못 읽는 주소는 막는다: %s", (webUrl) => {
+    expect(releaseProblems({ ...valid, profile: "preview", webUrl })).toHaveLength(1);
+  });
+
+  it("guard 가 통과시킨 주소는 앱의 parseWebUrl 이 던지지 않는다 (둘이 어긋나면 빨개진다)", () => {
+    for (const webUrl of ["https://quiz.example.com", "https://quiz.example.com/", "https://a.b.co.kr:8443", "https://workers.dev.example.com"]) {
+      expect(problems({ webUrl })).toEqual([]);
+      expect(() => parseWebUrl(webUrl)).not.toThrow();
+    }
+  });
+
   it.each(["https://quiz.example.com", "https://quiz.example.com/", "https://a.b.co.kr:8443"])("받는 주소: %s", (webUrl) => {
     expect(problems({ webUrl })).toEqual([]);
   });
@@ -69,6 +88,11 @@ describe("production: 한 규칙씩", () => {
 
   it.each([PRIVACY_CONTACT_PLACEHOLDER, "", "  "])("개인정보 문의처가 자리표시이거나 비면 막는다: %j", (privacyContact) => {
     expect(problems({ privacyContact })).toHaveLength(1);
+  });
+
+  it("실제로 보이는 문의처는 막지 않는다 (저장소의 현재 값과 무관)", () => {
+    expect(problems({ privacyContact: "privacy@example.com" })).toEqual([]);
+    expect(problems({ privacyContact: "https://example.com/contact" })).toEqual([]);
   });
 });
 

@@ -12,6 +12,7 @@ import { decideNavigation, isMainDocumentFailure } from "./navigation";
 import { appHost } from "./nativeHost";
 import { Offline } from "./Offline";
 import { receiveScript } from "./reply";
+import { recoveryFor, type WebViewDeath } from "./recovery";
 import { paletteFor } from "./theme";
 
 function shouldStart(request: ShouldStartLoadRequest): boolean {
@@ -55,10 +56,13 @@ export function Shell() {
   const onHttpError = (event: WebViewHttpErrorEvent) => {
     if (isMainDocumentFailure(event.nativeEvent.url, mainUrl.current)) setFailed(true);
   };
-  const reload = () => webView.current?.reload();
-  const retry = () => {
+  const remount = () => {
     setFailed(false);
     setAttempt((n) => n + 1);
+  };
+  const recover = (death: WebViewDeath) => {
+    if (recoveryFor(death) === "remount") remount();
+    else webView.current?.reload();
   };
 
   return (
@@ -73,7 +77,7 @@ export function Shell() {
       }}
     >
       {failed ? (
-        <Offline onRetry={retry} />
+        <Offline onRetry={remount} />
       ) : (
         <WebView
           key={attempt}
@@ -86,8 +90,8 @@ export function Shell() {
           onLoadStart={onLoadStart}
           onError={onError}
           onHttpError={onHttpError}
-          onContentProcessDidTerminate={reload}
-          onRenderProcessGone={reload}
+          onContentProcessDidTerminate={() => recover("ios-content-process-terminated")}
+          onRenderProcessGone={() => recover("android-render-process-gone")}
           style={{ flex: 1, backgroundColor: palette.background }}
         />
       )}

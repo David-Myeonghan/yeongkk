@@ -24,6 +24,8 @@
 이벤트 { v, kind: "event", name, payload? }
 ```
 
+앱이 보내는 이벤트: `resume`은 앱이 다시 앞으로 돌아올 때 보낸다. 웹은 아직 듣지 않는다.
+
 앱이 모르는 규약 버전(`v`)이거나 모양이 틀린 요청이라도 `id`가 있으면 앱은 현재 규약 버전으로 `BAD_REQUEST` 실패 응답을 돌려준다. `id`가 없으면 답 없이 버려지고, 웹은 시간이 지나 `TIMEOUT`을 받는다.
 
 오류 코드는 `UNSUPPORTED`, `TIMEOUT`, `FAILED`, `BAD_REQUEST`, `NO_HOST` 다.
@@ -59,7 +61,7 @@
 | `ads` | 1 | `{ visible: boolean }` |
 | `offline` | - | 자리만, 아직 정의 안 함 |
 
-지금 앱 쪽 처리기가 실제로 있는 것은 아직 없다. 위 표는 규약상의 약속이다.
+지금 앱 쪽 처리기가 있는 것은 `share`와 `haptics`뿐이다(`app/src/host.ts`). 둘 다 실제 기기에서는 돌려 본 적이 없다. `notify`와 `ads`는 규약상의 약속일 뿐 처리기가 없다.
 
 공유는 `share(bridge, data, env)`가 앱, 웹 공유, 복사 순으로 대신한다.
 앱 공유 호출은 공유 창이 열려 있는 동안을 기다리느라 60초까지 기다린다. 이때 `TIMEOUT`이면 창이 이미 떠 있을 가능성이 크므로 두 번째 창을 열거나 몰래 복사하지 않고 `{ via: "native", completed: false }`로 끝낸다. 그 밖의 앱 호출 실패(`UNSUPPORTED`, `FAILED`, `NO_HOST`, `BAD_REQUEST`, `BridgeError`가 아닌 오류)는 다음으로 넘어간다. 사용자가 웹 공유 창을 닫으면(`AbortError`) 거기서 끝내고 복사로 넘어가지 않는다.

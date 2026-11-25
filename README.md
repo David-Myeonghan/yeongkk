@@ -1,13 +1,13 @@
 # 뭔말이야
 
 요즘 10~20대 신조어를 퀴즈로 맞히는 앱이다. 저장소와 코드 이름은 `yeongkk`로 그대로 둔다.
-웹 퀴즈가 먼저고, Worker 하나가 웹 파일과 API를 같이 내준다. 앱의 웹뷰에서 여는 것은 나중 일이다.
+웹 퀴즈가 먼저고, Worker 하나가 웹 파일과 API를 같이 내준다. 앱 껍데기(`app/`, Expo)가 그 웹을 웹뷰로 연다. 실제 기기나 시뮬레이터에서는 아직 한 번도 돌려 보지 않았다.
 
 ## 아직 없는 것
 
 - 배포된 곳이 없다. 배포 워크플로는 있지만 아직 한 번도 성공하지 못했다.
 - 게시된 단어가 0개다(`words/ko-KR/`는 비어 있다).
-- 앱 껍데기(`app/`)와 자동 수집은 없다.
+- 광고, 알림, 스토어 빌드, 자동 수집은 없다. 앱 껍데기는 있지만 기기에서 돌려 본 적이 없다.
 
 ## 폴더
 
@@ -18,6 +18,7 @@
 - `quiz-core/` 한 판 구성 · 문제 · 채점 · 실험 배정. 화면 없는 순수 로직.
 - `bridge/` 웹과 앱이 주고받는 메시지 규약. 자세한 것은 `bridge/README.md`.
 - `web/` 퀴즈 웹(React + Vite).
+- `app/` 웹을 웹뷰로 여는 Expo 앱 껍데기. 기기에서 돌려 본 적 없다. 자세한 것은 `app/README.md`.
 - `api/` Cloudflare Worker + D1. 이벤트 · 제보 · 통계.
 - `tools/` 린트 룰, JS 소스 금지 테스트, 로컬 PR 리뷰 틀(`tools/review/`).
 - `scripts/` CI용 스크립트.
@@ -49,6 +50,7 @@ npm run lint
 npm run typecheck
 npm run typecheck -w web
 npm run typecheck -w api
+npm run typecheck -w app
 ```
 
 PR 리뷰는 `npm run review -- <PR 번호>` — 자세한 것은 `tools/review/README.md`.

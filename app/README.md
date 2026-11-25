@@ -42,6 +42,11 @@
 
 앱 식별자(`app.config.ts`의 `APP_IDENTIFIER`)는 자리표시 값 `app.example.yeongkk`다. 주인이 정하기 전에는 스토어용 빌드를 만들지 않는다.
 
+## 링크 처리의 한계
+
+웹뷰의 `originWhitelist`는 웹 출처로 제한했다. 허용 출처가 아닌 주소(`mailto:`, `tel:`, `myapp://` 같은 것 포함)는 `react-native-webview`가 먼저 OS로 넘긴다. 이 경우 `src/navigation.ts`의 판정까지 오지 않는다.
+허용 검사는 앞 글자만 보므로, 웹 출처로 시작하는 다른 호스트(`https://웹출처.evil.com`)는 통과한다. 이것만 `navigation.ts`가 다시 걸러 기기 브라우저로 보낸다.
+
 ## 확인하지 못한 것
 
 이 앱은 실제 폰이나 시뮬레이터에서 한 번도 돌려 보지 않았다. 이 맥에는 Xcode가 없다.

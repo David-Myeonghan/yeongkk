@@ -3,11 +3,7 @@ import { BridgeError, isObj } from "../../bridge/protocol";
 
 export type HapticKind = "success" | "error";
 
-export interface ShareContent {
-  title?: string;
-  message?: string;
-  url?: string;
-}
+export type ShareContent = { title?: string } & ({ message: string; url?: string } | { url: string });
 
 export interface HostDeps {
   appVersion: string;
@@ -32,12 +28,13 @@ function shareContent(payload: unknown, platform: string): ShareContent {
   const title = optionalText(payload, "title");
   const text = optionalText(payload, "text");
   const url = optionalText(payload, "url");
-  if (text === undefined && url === undefined) throw new BridgeError("BAD_REQUEST", "share needs text or url");
-  const common = title === undefined ? {} : { title };
-  if (platform === "android") {
-    return { ...common, message: [text, url].filter((part) => part !== undefined).join(" ") };
+  const head = title === undefined ? {} : { title };
+  if (text === undefined) {
+    if (url === undefined) throw new BridgeError("BAD_REQUEST", "share needs text or url");
+    return platform === "android" ? { ...head, message: url } : { ...head, url };
   }
-  return { ...common, ...(text === undefined ? {} : { message: text }), ...(url === undefined ? {} : { url }) };
+  if (platform === "android") return { ...head, message: url === undefined ? text : `${text} ${url}` };
+  return { ...head, message: text, ...(url === undefined ? {} : { url }) };
 }
 
 export function createAppHost(deps: HostDeps): NativeHost {

@@ -10,6 +10,10 @@ describe("originOf", () => {
     expect(originOf("http://localhost:8787/x")).toBe("http://localhost:8787");
   });
 
+  it("포트 65535 는 허용 범위의 끝이라 출처가 나온다", () => {
+    expect(originOf("https://quiz.example.com:65535")).toBe("https://quiz.example.com:65535");
+  });
+
   it.each([
     "about:blank",
     "mailto:a@b.com",
@@ -23,7 +27,7 @@ describe("originOf", () => {
     "https://user:pw@quiz.example.com/",
     " https://quiz.example.com/",
     "https:\\\\quiz.example.com",
-    "https://quiz.example.com:99999999",
+    "https://quiz.example.com:65536",
     "myapp://quiz.example.com",
   ])("%j 는 출처가 없다", (url) => {
     expect(originOf(url)).toBeNull();
@@ -85,8 +89,9 @@ describe("decideNavigation", () => {
     expect(decideNavigation("https://quiz.example.com.evil.com/", ORIGIN)).toBe("open-external");
   });
 
+  // 순수 함수의 결과만 고정한다. 앱에서는 허용 출처가 아닌 주소를 라이브러리가 먼저 OS 로 넘겨서 이 판정까지 오지 않는다.
   it.each(["mailto:a@b.com", "tel:+8210", "myapp://x", "about:blank", "javascript:alert(1)", "intent://x#Intent;end", "", "https://", "data:text/html,hi"])(
-    "%j 는 무시한다",
+    "decideNavigation(%j) 는 순수 판정으로 ignore",
     (url) => {
       expect(decideNavigation(url, ORIGIN)).toBe("ignore");
     },

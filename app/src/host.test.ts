@@ -53,6 +53,12 @@ describe("share", () => {
     expect(deps.share).toHaveBeenCalledWith({ message: "https://q.example/" });
   });
 
+  it("iOS: url 만 있으면 url 만 넘긴다 (빈 message 를 지어내면 잡힘)", async () => {
+    const { host, deps } = make();
+    await call(host, "share", { url: "https://q.example/" });
+    expect(deps.share).toHaveBeenCalledWith({ url: "https://q.example/" });
+  });
+
   it("사용자가 닫으면 completed:false (닫기를 완료로 보면 잡힘)", async () => {
     const { host } = make({ share: async () => ({ action: "dismissedAction" }) });
     expect(await call(host, "share", { text: "x" })).toMatchObject({ ok: true, result: { completed: false } });

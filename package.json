@@ -9,7 +9,8 @@
     "build": "tsx registry/cli-build.ts",
     "add-word": "GH_TOKEN=$(gh auth token --user David-Myeonghan) tsx registry/add-word.ts",
     "lint": "eslint .",
-    "review": "tsx tools/review/run.ts"
+    "review": "tsx tools/review/run.ts",
+    "privacy": "tsx tools/privacy/cli.ts"
   },
   "workspaces": [
     "web",

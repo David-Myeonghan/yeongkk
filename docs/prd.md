@@ -75,6 +75,7 @@
 - 저장한 지 6시간이 지난 판, 시작 시각이 5분보다 더 미래인 판, 모양이 틀린 저장값은 이어 풀지 않는다. 저장소가 막혀도 던지지 않는다. `web/src/state/progress.test.ts`, `web/src/state/storage.test.ts`
 - 판 도중 6시간이 지나면 홈으로 보내고 시간이 지났다고 알린다. `web/e2e/round.spec.ts`
 - 시작을 두 번 눌러도 이동은 한 번이다. 테스트 없음
+- 홈에는 어느 상태(불러오는 중 · 실패 · 준비됨 · 이어 풀기)에서든 「개인정보 처리방침」 링크가 있고 `/privacy/`로 간다. 그 페이지 위와 아래의 「← 뭔말이야로 돌아가기」 링크가 홈으로 돌아온다. 앱 웹뷰에는 브라우저 뒤로 가기 버튼이 없어서다. `web/e2e/privacy.spec.ts`, `tools/privacy/privacy.test.ts`, `app/src/navigation.test.ts`(`/privacy/`는 같은 출처). 이어 풀기 상태는 테스트 없음
 
 ### 문제
 

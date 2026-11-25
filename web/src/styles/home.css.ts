@@ -9,3 +9,19 @@ export const reply = style({
   fontWeight: 700,
   lineHeight: vars.lineHeight.snug,
 });
+
+export const privacyLink = style({
+  alignSelf: "center",
+  display: "inline-flex",
+  alignItems: "center",
+  minHeight: vars.tap.minHeight,
+  paddingInline: vars.space.md,
+  fontSize: vars.fontSize.sm,
+  color: vars.color.muted,
+  textDecoration: "underline",
+  textUnderlineOffset: "3px",
+  borderRadius: vars.radius.sm,
+  selectors: {
+    "&:focus-visible": { outline: `3px solid ${vars.color.accent}`, outlineOffset: "2px" },
+  },
+});

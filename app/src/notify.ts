@@ -30,6 +30,10 @@ const report = async (deps: NotifyDeps): Promise<NotifyState> => ({
   scheduled: await deps.isScheduled(),
 });
 
+const cancelIfScheduled = async (deps: NotifyDeps): Promise<void> => {
+  if (await deps.isScheduled()) await deps.cancel();
+};
+
 const ACTIONS: Record<string, (deps: NotifyDeps) => Promise<NotifyState>> = {
   status: report,
   async request(deps) {
@@ -39,13 +43,13 @@ const ACTIONS: Record<string, (deps: NotifyDeps) => Promise<NotifyState>> = {
   async "schedule-weekly"(deps) {
     const granted = (await deps.permissionGranted()) || (await deps.requestPermission());
     if (granted) {
-      await deps.cancel();
+      await cancelIfScheduled(deps);
       await deps.schedule({ title: REMINDER_TITLE, body: REMINDER_BODY }, REMINDER_TRIGGER);
     }
     return report(deps);
   },
   async cancel(deps) {
-    await deps.cancel();
+    await cancelIfScheduled(deps);
     return report(deps);
   },
 };

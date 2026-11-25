@@ -143,6 +143,39 @@ describe("notify: schedule-weekly", () => {
   });
 });
 
+describe("notify: 없는 예약은 취소하지 않는다", () => {
+  const cancels = (log: string[]) => log.filter((x) => x === "cancel").length;
+
+  it("처음 예약(걸린 것 없음)은 기기 cancel 을 부르지 않는다 (뜻: 무조건 cancel 하면 잡힘)", async () => {
+    const { notify, log, state } = fakePlatform({ granted: true, scheduled: false });
+    expect(await call(notify, { action: "schedule-weekly" })).toMatchObject({ ok: true, result: { granted: true, scheduled: true } });
+    expect(cancels(log)).toBe(0);
+    expect(state.live).toBe(1);
+  });
+
+  it("우리 것이 걸려 있으면 정확히 한 번 취소하고 그다음 예약한다 (뜻: 확인만 하고 취소를 빼거나 두 번 부르면 잡힘)", async () => {
+    const { notify, log } = fakePlatform({ granted: true, scheduled: true });
+    await call(notify, { action: "schedule-weekly" });
+    expect(cancels(log)).toBe(1);
+    expect(log.indexOf("isScheduled")).toBeLessThan(log.indexOf("cancel"));
+    expect(log.indexOf("cancel")).toBeLessThan(log.indexOf("schedule"));
+  });
+
+  it("걸린 게 없을 때 cancel 은 성공이고 기기 cancel 을 부르지 않는다 (뜻: 무조건 cancel 하면 잡힘)", async () => {
+    const { notify, log } = fakePlatform({ granted: true, scheduled: false });
+    expect(await call(notify, { action: "cancel" })).toMatchObject({ ok: true, result: { granted: true, scheduled: false } });
+    expect(cancels(log)).toBe(0);
+  });
+
+  it("걸려 있는 것을 지우는 기기 cancel 이 던지면 FAILED 이고 새로 예약하지 않는다 (뜻: 오류를 삼키고 예약하면 둘이 됨)", async () => {
+    const { notify, state } = fakePlatform({ granted: true, scheduled: true });
+    const failing: NotifyDeps = { ...notify, cancel: async () => { throw new Error("cannot cancel"); } };
+    expect(await call(failing, { action: "schedule-weekly" })).toMatchObject({ ok: false, error: { code: "FAILED" } });
+    expect(state.schedules).toEqual([]);
+    expect(state.live).toBe(1);
+  });
+});
+
 describe("notify: cancel", () => {
   it("예약을 지우고 현재 상태를 알린다", async () => {
     const { notify, state } = fakePlatform({ granted: true, scheduled: true });

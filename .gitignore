@@ -13,3 +13,9 @@ web/test-results/
 web/playwright-report/
 review-context/
 review-out/
+.expo/
+app/ios/
+app/android/
+app/dist/
+expo-env.d.ts
+*.tsbuildinfo

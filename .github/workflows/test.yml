@@ -23,6 +23,7 @@ jobs:
       - run: npm run typecheck -w api
       - run: npm test -w web
       - run: npm run typecheck -w web
+      - run: npm run typecheck -w app
       - run: npm run build -w web
   e2e:
     runs-on: ubuntu-latest

@@ -7,6 +7,7 @@ export default defineConfig({
       "bridge/**/*.test.ts",
       "quiz-core/**/*.test.ts",
       "tools/**/*.test.ts",
+      "app/src/**/*.test.ts",
     ],
   },
 });

@@ -25,3 +25,7 @@ export function createBannerStore(): BannerStore {
     },
   };
 }
+
+export function renderableBanner(state: BannerState, offline: boolean): Extract<BannerState, { visible: true }> | null {
+  return state.visible && !offline ? state : null;
+}

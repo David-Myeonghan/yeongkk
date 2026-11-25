@@ -1,28 +1,54 @@
 export type ConsentOutcome = { ok: true; nonPersonalized: boolean } | { ok: false };
 
+export type TrackingAnswer = "granted" | "denied" | "not-asked";
+
+export interface ConsentFacts {
+  canRequestAds: boolean;
+  gdprApplies: boolean;
+  selectedPersonalised: boolean;
+}
+
 export interface ConsentDeps {
-  gather(): Promise<{ canRequestAds: boolean; personalized: boolean }>;
+  gather(): Promise<ConsentFacts>;
   requestTracking?(): Promise<boolean>;
+  initialize(): Promise<void>;
+}
+
+export function decidePersonalization(input: {
+  gdprApplies: boolean;
+  selectedPersonalised: boolean;
+  tracking: TrackingAnswer;
+}): boolean {
+  const consentBlocks = input.gdprApplies && !input.selectedPersonalised;
+  return consentBlocks || input.tracking === "denied";
+}
+
+async function askTracking(request: ConsentDeps["requestTracking"]): Promise<TrackingAnswer> {
+  if (!request) return "not-asked";
+  try {
+    return (await request()) ? "granted" : "denied";
+  } catch {
+    return "denied";
+  }
 }
 
 async function run(deps: ConsentDeps): Promise<ConsentOutcome> {
-  let personalized: boolean;
   try {
-    const info = await deps.gather();
-    if (!info.canRequestAds) return { ok: false };
-    personalized = info.personalized;
+    const facts = await deps.gather();
+    if (!facts.canRequestAds) return { ok: false };
+    const tracking = await askTracking(deps.requestTracking);
+    await deps.initialize();
+    return {
+      ok: true,
+      nonPersonalized: decidePersonalization({
+        gdprApplies: facts.gdprApplies,
+        selectedPersonalised: facts.selectedPersonalised,
+        tracking,
+      }),
+    };
   } catch {
     return { ok: false };
   }
-  let tracked = true;
-  if (deps.requestTracking) {
-    try {
-      tracked = await deps.requestTracking();
-    } catch {
-      tracked = false;
-    }
-  }
-  return { ok: true, nonPersonalized: !(personalized && tracked) };
 }
 
 export function createConsentGate(deps: ConsentDeps): () => Promise<ConsentOutcome> {

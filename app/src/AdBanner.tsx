@@ -7,7 +7,7 @@ export default function AdBanner(props: { unitId: string; nonPersonalized: boole
       <BannerAd
         key={props.nonPersonalized ? "npa" : "pa"}
         unitId={props.unitId}
-        size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+        size={BannerAdSize.LARGE_ANCHORED_ADAPTIVE_BANNER}
         requestOptions={{ requestNonPersonalizedAdsOnly: props.nonPersonalized }}
       />
     </View>

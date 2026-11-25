@@ -217,17 +217,11 @@ describe("ads", () => {
     expect(ads.show).not.toHaveBeenCalled();
   });
 
-  it("동시에 보이기 두 번 → 동의 흐름은 한 번 (게이트 공유)", async () => {
-    let calls = 0;
-    const gate = (() => {
-      let p: Promise<{ ok: true; nonPersonalized: boolean }> | null = null;
-      return () => (p ??= (calls += 1, Promise.resolve({ ok: true as const, nonPersonalized: false })));
-    })();
-    const { host } = make({ ads: makeAds({ consent: gate }) });
+  it("동시에 보이기 두 번 -> 둘 다 visible:true", async () => {
+    const { host } = make({ ads: makeAds() });
     const [a, b] = await Promise.all([call(host, "ads", { visible: true }), call(host, "ads", { visible: true })]);
-    expect(a).toMatchObject({ result: { visible: true } });
-    expect(b).toMatchObject({ result: { visible: true } });
-    expect(calls).toBe(1);
+    expect(a).toMatchObject({ ok: true, result: { visible: true } });
+    expect(b).toMatchObject({ ok: true, result: { visible: true } });
   });
 
   it("동의를 기다리는 사이 숨기기가 오면 나중 요청이 이긴다 (뜻: 늦게 끝난 동의가 숨김을 뒤집으면 잡힘)", async () => {

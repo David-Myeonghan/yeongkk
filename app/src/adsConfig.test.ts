@@ -51,13 +51,24 @@ describe("resolveAdsConfig — 아이디 검증", () => {
     expect(inBuild({ ADMOB_IOS_APP_ID: ` ${IOS_APP}\n`, ADMOB_ANDROID_APP_ID: ANDROID_APP }).enabled).toBe(true);
   });
 
-  it("배너 단위 아이디는 모양이 맞을 때만 받는다 (뜻: 앱 아이디 모양을 단위에 쓰면 잡힘)", () => {
-    const cfg = inBuild({
-      ...base,
-      EXPO_PUBLIC_ADMOB_IOS_BANNER_ID: ` ${OWN_UNIT} `,
-      EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID: "ca-app-pub-1111111111111111~2222222222",
+  it("배너 단위 아이디: 맞는 모양은 받고 앞뒤 공백은 자른다 (뜻: trim 을 빼면 잡힘)", () => {
+    expect(inBuild({ ...base, EXPO_PUBLIC_ADMOB_IOS_BANNER_ID: ` ${OWN_UNIT} ` })).toEqual({
+      enabled: true,
+      iosAppId: IOS_APP,
+      androidAppId: ANDROID_APP,
+      iosBannerId: OWN_UNIT,
     });
-    expect(cfg).toEqual({ enabled: true, iosAppId: IOS_APP, androidAppId: ANDROID_APP, iosBannerId: OWN_UNIT });
+  });
+
+  it("배너 단위 아이디가 있는데 모양이 틀리면 오류 — 앱 아이디를 잘못 붙인 경우 (뜻: 조용히 무시하면 잡힘)", () => {
+    for (const key of ["EXPO_PUBLIC_ADMOB_IOS_BANNER_ID", "EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID"]) {
+      expect(() => inBuild({ ...base, [key]: "ca-app-pub-1111111111111111~2222222222" })).toThrow(AdsSettingsError);
+      expect(() => inBuild({ ...base, [key]: "x" })).toThrow(/배너 단위 아이디/);
+    }
+  });
+
+  it("배너 단위 아이디가 빈 글자면 안 준 것", () => {
+    expect(inBuild({ ...base, EXPO_PUBLIC_ADMOB_IOS_BANNER_ID: " " })).toEqual({ enabled: true, iosAppId: IOS_APP, androidAppId: ANDROID_APP });
   });
 });
 
@@ -83,6 +94,9 @@ describe("bannerUnitId", () => {
 });
 
 describe("adsFromExtra", () => {
+  it("extra 읽기는 너그럽다: 틀린 배너 아이디는 버리고 켠 채로 둔다", () => {
+    expect(adsFromExtra({ ads: { enabled: true, iosAppId: IOS_APP, androidAppId: ANDROID_APP, iosBannerId: "x" } })).toEqual(inBuild(base));
+  });
   it("앱 설정의 extra.ads 를 다시 검증해 읽는다", () => {
     expect(adsFromExtra({ ads: inBuild(base) })).toEqual(inBuild(base));
   });

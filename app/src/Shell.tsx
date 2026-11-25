@@ -10,6 +10,7 @@ import type {
 import { WEB_ORIGIN, WEB_URL } from "./config";
 import { decideNavigation, isMainDocumentFailure } from "./navigation";
 import { appHost } from "./nativeHost";
+import { renderableBanner } from "./bannerState";
 import { bannerStore } from "./nativeAds";
 import { Offline } from "./Offline";
 import { receiveScript } from "./reply";
@@ -31,7 +32,8 @@ export function Shell() {
   const [attempt, setAttempt] = useState(0);
   const insets = useSafeAreaInsets();
   const palette = paletteFor(useColorScheme());
-  const banner = useSyncExternalStore(bannerStore.subscribe, bannerStore.get);
+  const requested = useSyncExternalStore(bannerStore.subscribe, bannerStore.get);
+  const banner = renderableBanner(requested, failed);
 
   const send = useCallback((message: string) => webView.current?.injectJavaScript(receiveScript(message)), []);
 
@@ -99,7 +101,7 @@ export function Shell() {
           style={{ flex: 1, backgroundColor: palette.background }}
         />
       )}
-      {banner.visible && (
+      {banner !== null && (
         <Suspense fallback={null}>
           <AdBanner unitId={banner.unitId} nonPersonalized={banner.nonPersonalized} />
         </Suspense>

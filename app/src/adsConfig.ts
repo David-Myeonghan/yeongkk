@@ -1,6 +1,4 @@
 export const GOOGLE_TEST_IDS = {
-  iosAppId: "ca-app-pub-3940256099942544~1458002511",
-  androidAppId: "ca-app-pub-3940256099942544~3347511713",
   iosBanner: "ca-app-pub-3940256099942544/2435281174",
   androidBanner: "ca-app-pub-3940256099942544/9214589741",
 } as const;
@@ -67,12 +65,16 @@ export function resolveAdsConfig(env: AdsEnv, opts: { nativeModuleExcluded: bool
       `AdMob 앱 아이디를 줬지만 app/package.json 의 expo.autolinking.exclude 에 ${ADS_MODULE} 가 남아 있어요. 이대로면 광고 코드가 빌드에 없어요. 광고를 켜려면 제외 목록에서 빼세요.`,
     );
   }
-  return build({
-    iosAppId,
-    androidAppId,
-    iosBannerId: env.EXPO_PUBLIC_ADMOB_IOS_BANNER_ID,
-    androidBannerId: env.EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID,
-  });
+  const bannerIds = {
+    iosBannerId: present(env.EXPO_PUBLIC_ADMOB_IOS_BANNER_ID),
+    androidBannerId: present(env.EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID),
+  };
+  if (Object.values(bannerIds).some((raw) => raw !== undefined && checked(raw, UNIT_ID) === undefined)) {
+    throw new AdsSettingsError(
+      "EXPO_PUBLIC_ADMOB_IOS_BANNER_ID / EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID 모양이 틀려요. 배너 단위 아이디는 ca-app-pub-숫자16자리/숫자10자리 여야 해요 (앱 아이디의 ~ 가 아니라 /).",
+    );
+  }
+  return build({ iosAppId, androidAppId, ...bannerIds });
 }
 
 export function adsFromExtra(extra: unknown): AdsConfig {

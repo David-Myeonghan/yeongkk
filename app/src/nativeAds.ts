@@ -11,8 +11,14 @@ export const bannerStore = createBannerStore();
 async function gather() {
   const { AdsConsent } = await import("react-native-google-mobile-ads");
   const info = await AdsConsent.gatherConsent();
+  const gdprApplies = await AdsConsent.getGdprApplies();
   const choices = await AdsConsent.getUserChoices();
-  return { canRequestAds: info.canRequestAds, personalized: choices.selectPersonalisedAds };
+  return { canRequestAds: info.canRequestAds, gdprApplies, selectedPersonalised: choices.selectPersonalisedAds };
+}
+
+async function initialize() {
+  const { default: mobileAds } = await import("react-native-google-mobile-ads");
+  await mobileAds().initialize();
 }
 
 async function requestTracking() {
@@ -22,7 +28,7 @@ async function requestTracking() {
 
 export const nativeAds: AdsDeps | undefined = adsConfig.enabled
   ? {
-      consent: createConsentGate({ gather, requestTracking: Platform.OS === "ios" ? requestTracking : undefined }),
+      consent: createConsentGate({ gather, initialize, requestTracking: Platform.OS === "ios" ? requestTracking : undefined }),
       show(nonPersonalized) {
         const unitId = bannerUnitId(adsConfig, Platform.OS, __DEV__);
         if (unitId === null) return false;

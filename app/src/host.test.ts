@@ -146,3 +146,94 @@ describe("bridge 규칙", () => {
     expect(JSON.parse(make().host.event("resume"))).toEqual({ v: 1, kind: "event", name: "resume" });
   });
 });
+
+describe("ads", () => {
+  type AdsDeps = NonNullable<HostDeps["ads"]>;
+  const makeAds = (overrides: Partial<AdsDeps> = {}): AdsDeps => ({
+    consent: vi.fn(async () => ({ ok: true as const, nonPersonalized: false })),
+    show: vi.fn(() => true),
+    hide: vi.fn(),
+    ...overrides,
+  });
+
+  it("광고가 꺼진 빌드는 기능표에 ads 가 없고 부르면 UNSUPPORTED (뜻: 늘 광고하면 잡힘)", async () => {
+    const { host } = make();
+    expect(host.info().capabilities).not.toHaveProperty("ads");
+    expect(await call(host, "ads", { visible: true })).toMatchObject({ ok: false, error: { code: "UNSUPPORTED" } });
+  });
+
+  it("켠 빌드는 ads 1 을 알린다", () => {
+    expect(make({ ads: makeAds() }).host.info().capabilities).toEqual({ share: 1, haptics: 1, ads: 1 });
+  });
+
+  it("visible:true → 동의 뒤 보여 주고 {visible:true}", async () => {
+    const ads = makeAds();
+    const { host } = make({ ads });
+    expect(await call(host, "ads", { visible: true })).toMatchObject({ ok: true, result: { visible: true } });
+    expect(ads.consent).toHaveBeenCalledTimes(1);
+    expect(ads.show).toHaveBeenCalledWith(false);
+  });
+
+  it("visible:false → 동의를 묻지 않고 숨긴다 (뜻: 숨길 때도 동의창이 뜨면 잡힘)", async () => {
+    const ads = makeAds();
+    const { host } = make({ ads });
+    expect(await call(host, "ads", { visible: false })).toMatchObject({ ok: true, result: { visible: false } });
+    expect(ads.consent).not.toHaveBeenCalled();
+    expect(ads.hide).toHaveBeenCalledTimes(1);
+  });
+
+  it("동의 거부 → 비맞춤으로 보여 준다 (뜻: nonPersonalized 를 안 넘기면 잡힘)", async () => {
+    const ads = makeAds({ consent: async () => ({ ok: true, nonPersonalized: true }) });
+    const { host } = make({ ads });
+    expect(await call(host, "ads", { visible: true })).toMatchObject({ result: { visible: true } });
+    expect(ads.show).toHaveBeenCalledWith(true);
+  });
+
+  it("동의 흐름 실패 → 배너 없이 {visible:false} (뜻: 실패에도 보이면 잡힘)", async () => {
+    const ads = makeAds({ consent: async () => ({ ok: false }) });
+    const { host } = make({ ads });
+    expect(await call(host, "ads", { visible: true })).toMatchObject({ ok: true, result: { visible: false } });
+    expect(ads.show).not.toHaveBeenCalled();
+    expect(ads.hide).toHaveBeenCalled();
+  });
+
+  it("show 가 못 보였다고 하면(단위 아이디 없음) 그대로 {visible:false}", async () => {
+    const { host } = make({ ads: makeAds({ show: () => false }) });
+    expect(await call(host, "ads", { visible: true })).toMatchObject({ result: { visible: false } });
+  });
+
+  it("동의 흐름이 던져도 {visible:false} (뜻: 던진 오류가 BAD_REQUEST/FAILED 로 새면 잡힘)", async () => {
+    const { host } = make({ ads: makeAds({ consent: async () => { throw new Error("boom"); } }) });
+    expect(await call(host, "ads", { visible: true })).toMatchObject({ ok: true, result: { visible: false } });
+  });
+
+  it("payload 가 틀리면 BAD_REQUEST", async () => {
+    const ads = makeAds();
+    const { host } = make({ ads });
+    for (const bad of [undefined, null, "yes", {}, { visible: "true" }, { visible: 1 }]) {
+      expect(await call(host, "ads", bad)).toMatchObject({ ok: false, error: { code: "BAD_REQUEST" } });
+    }
+    expect(ads.consent).not.toHaveBeenCalled();
+    expect(ads.show).not.toHaveBeenCalled();
+  });
+
+  it("동시에 보이기 두 번 -> 둘 다 visible:true", async () => {
+    const { host } = make({ ads: makeAds() });
+    const [a, b] = await Promise.all([call(host, "ads", { visible: true }), call(host, "ads", { visible: true })]);
+    expect(a).toMatchObject({ ok: true, result: { visible: true } });
+    expect(b).toMatchObject({ ok: true, result: { visible: true } });
+  });
+
+  it("동의를 기다리는 사이 숨기기가 오면 나중 요청이 이긴다 (뜻: 늦게 끝난 동의가 숨김을 뒤집으면 잡힘)", async () => {
+    let release: (v: { ok: true; nonPersonalized: boolean }) => void = () => undefined;
+    const ads = makeAds({ consent: () => new Promise((r) => { release = r; }) });
+    const { host } = make({ ads });
+    const first = call(host, "ads", { visible: true });
+    await Promise.resolve();
+    const second = await call(host, "ads", { visible: false });
+    release({ ok: true, nonPersonalized: false });
+    expect(second).toMatchObject({ result: { visible: false } });
+    expect(await first).toMatchObject({ ok: true, result: { visible: false } });
+    expect(ads.show).not.toHaveBeenCalled();
+  });
+});

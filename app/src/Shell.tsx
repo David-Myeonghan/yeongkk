@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ComponentRef } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore, type ComponentRef } from "react";
 import { AppState, Linking, useColorScheme, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
@@ -10,10 +10,14 @@ import type {
 import { WEB_ORIGIN, WEB_URL } from "./config";
 import { decideNavigation, isMainDocumentFailure } from "./navigation";
 import { appHost } from "./nativeHost";
+import { renderableBanner } from "./bannerState";
+import { bannerStore } from "./nativeAds";
 import { Offline } from "./Offline";
 import { receiveScript } from "./reply";
 import { recoveryFor, type WebViewDeath } from "./recovery";
 import { paletteFor } from "./theme";
+
+const AdBanner = lazy(() => import("./AdBanner"));
 
 function shouldStart(request: ShouldStartLoadRequest): boolean {
   const decision = decideNavigation(request.url, WEB_ORIGIN);
@@ -28,6 +32,8 @@ export function Shell() {
   const [attempt, setAttempt] = useState(0);
   const insets = useSafeAreaInsets();
   const palette = paletteFor(useColorScheme());
+  const requested = useSyncExternalStore(bannerStore.subscribe, bannerStore.get);
+  const banner = renderableBanner(requested, failed);
 
   const send = useCallback((message: string) => webView.current?.injectJavaScript(receiveScript(message)), []);
 
@@ -94,6 +100,11 @@ export function Shell() {
           onRenderProcessGone={() => recover("android-render-process-gone")}
           style={{ flex: 1, backgroundColor: palette.background }}
         />
+      )}
+      {banner !== null && (
+        <Suspense fallback={null}>
+          <AdBanner unitId={banner.unitId} nonPersonalized={banner.nonPersonalized} />
+        </Suspense>
       )}
     </View>
   );

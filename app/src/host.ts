@@ -1,9 +1,16 @@
 import { createNativeHost, type NativeHost } from "../../bridge/native-host";
 import { BridgeError, isObj } from "../../bridge/protocol";
+import type { ConsentOutcome } from "./adsConsent";
 
 export type HapticKind = "success" | "error";
 
 export type ShareContent = { title?: string } & ({ message: string; url?: string } | { url: string });
+
+export interface AdsDeps {
+  consent(): Promise<ConsentOutcome>;
+  show(nonPersonalized: boolean): boolean;
+  hide(): void;
+}
 
 export interface HostDeps {
   appVersion: string;
@@ -11,6 +18,7 @@ export interface HostDeps {
   dismissedAction: string;
   share(content: ShareContent): Promise<{ action: string }>;
   haptic(kind: HapticKind): Promise<void>;
+  ads?: AdsDeps;
 }
 
 const HAPTIC_KINDS: readonly string[] = ["success", "error"];
@@ -37,11 +45,41 @@ function shareContent(payload: unknown, platform: string): ShareContent {
   return { ...head, message: text, ...(url === undefined ? {} : { url }) };
 }
 
+function adsHandler(ads: AdsDeps) {
+  let wanted = false;
+  const apply = async (visible: boolean): Promise<boolean> => {
+    if (!visible) {
+      ads.hide();
+      return false;
+    }
+    let outcome: ConsentOutcome;
+    try {
+      outcome = await ads.consent();
+    } catch {
+      outcome = { ok: false };
+    }
+    if (!wanted) return false;
+    if (outcome.ok && ads.show(outcome.nonPersonalized)) return true;
+    ads.hide();
+    return false;
+  };
+  return {
+    version: 1,
+    async handle(payload: unknown) {
+      const visible = isObj(payload) ? payload.visible : undefined;
+      if (typeof visible !== "boolean") throw new BridgeError("BAD_REQUEST", "visible must be a boolean");
+      wanted = visible;
+      return { visible: await apply(visible) };
+    },
+  };
+}
+
 export function createAppHost(deps: HostDeps): NativeHost {
   return createNativeHost({
     appVersion: deps.appVersion,
     platform: deps.platform,
     handlers: {
+      ...(deps.ads ? { ads: adsHandler(deps.ads) } : {}),
       share: {
         version: 1,
         async handle(payload) {

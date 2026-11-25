@@ -30,7 +30,12 @@ h2{font-size:19px;line-height:1.3;margin:32px 0 8px;padding-top:16px;border-top:
 p,li{margin:8px 0}
 ul{padding-left:20px}
 .updated{color:var(--muted);margin:0}
+.back{margin:0}
+.back a{color:var(--accent);display:inline-block;padding:12px 0}
+.back.end{margin-top:32px}
 `.trim();
+
+const BACK = "← 뭔말이야로 돌아가기";
 
 export function renderHtml(doc: PrivacyDoc): string {
   const body = doc.sections.map((s) => `<h2>${escapeHtml(s.title)}</h2>\n${s.blocks.map(htmlBlock).join("\n")}`).join("\n");
@@ -49,9 +54,11 @@ ${STYLE}
 </head>
 <body>
 <main>
+<p class="back"><a href="/">${BACK}</a></p>
 <h1>${escapeHtml(doc.title)}</h1>
 <p class="updated">최종 수정: ${escapeHtml(doc.updated)}</p>
 ${body}
+<p class="back end"><a href="/">${BACK}</a></p>
 </main>
 </body>
 </html>

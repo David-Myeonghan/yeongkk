@@ -105,6 +105,9 @@ export const Home: ActivityComponentType<"Home"> = () => {
               ),
             )
             .exhaustive()}
+          <a href="/privacy/" className={home.privacyLink}>
+            개인정보 처리방침
+          </a>
         </div>
       </main>
     </AppScreen>

@@ -39,8 +39,16 @@ describe("문서와 웹 페이지가 어긋나지 않는다", () => {
 
   it("웹 페이지는 스크립트 · 외부 파일 · 폼이 없다", () => {
     const html = renderHtml(policy("X"));
-    expect(html).not.toMatch(/<script|<link|<form|<iframe|<img|src=|href=/i);
+    expect(html).not.toMatch(/<script|<link|<form|<iframe|<img|src=/i);
+    expect([...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1])).toEqual(["/", "/"]);
     expect(html).toContain("prefers-color-scheme:dark");
+  });
+
+  it("웹 페이지는 위와 아래에 돌아가기 링크가 있고, 문서 사본에는 없다 (앱 웹뷰에는 뒤로 갈 길이 이것뿐이다)", () => {
+    const html = renderHtml(policy("X"));
+    expect(html.match(/<a href="\/">← 뭔말이야로 돌아가기<\/a>/g)).toHaveLength(2);
+    expect(html.indexOf("돌아가기")).toBeLessThan(html.indexOf("<h1>"));
+    expect(renderMarkdown(policy("X"))).not.toContain("돌아가기");
   });
 
   it("HTML 특수문자는 막는다", () => {

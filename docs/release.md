@@ -153,7 +153,7 @@
 4. 「사람」 App Store Connect에 넣는다: `docs/store/listing.ko.md`(이름, 부제, 설명, 키워드, 지원 URL, 처리방침 URL), `docs/store/app-privacy.md`(개인정보 답), `docs/store/age-rating.md`(연령 등급), `docs/store/review-notes.md`(심사 메모와 연락처), 스크린샷(iPhone, 1179x2556 또는 1206x2622, 1~10장).
 5. 「사람」 TestFlight로 본인 폰에서 한 번 더 돌려 본다.
 6. 「사람」 심사에 제출한다. 거절되면 사유 원문을 `docs/decisions.md`에 적는다.
-   - 제출 전에 알아 둘 것: Apple 지침 5.1.1(i)은 앱 안에서도 처리방침 링크를 요구한다. 이 저장소의 웹 홈에는 그 링크가 아직 없다. 제출 전에 넣는 변경이 필요하다.
+   - 제출 전에 알아 둘 것: Apple 지침 5.1.1(i)은 앱 안에서도 처리방침 링크를 요구한다. 앱 안에서는 홈 → 「개인정보 처리방침」으로 닿고, 방침 페이지의 「← 뭔말이야로 돌아가기」로 홈에 돌아온다. 실기기에서 확인한다(`docs/device-checklist.md` D47).
 
 ## 9. Google Play
 

@@ -78,6 +78,13 @@ describe("isSameOrigin", () => {
 });
 
 describe("decideNavigation", () => {
+  it("/privacy/ 는 같은 출처라 웹뷰에서 연다 (처리방침 링크와 돌아가기 링크가 앱 안에서 이어진다)", () => {
+    expect(decideNavigation("https://quiz.example.com/privacy/", ORIGIN)).toBe("load");
+    expect(decideNavigation("https://quiz.example.com/privacy", ORIGIN)).toBe("load");
+    expect(decideNavigation("https://quiz.example.com/", ORIGIN)).toBe("load");
+    expect(decideNavigation("https://quiz.example.com.evil.com/privacy/", ORIGIN)).toBe("open-external");
+  });
+
   it("같은 출처는 웹뷰에서 연다", () => {
     expect(decideNavigation("https://quiz.example.com/?r=2", ORIGIN)).toBe("load");
   });

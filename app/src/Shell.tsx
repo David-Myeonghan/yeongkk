@@ -1,11 +1,16 @@
-import { useRef, type ComponentRef } from "react";
-import { Linking, useColorScheme, View } from "react-native";
+import { useCallback, useEffect, useRef, useState, type ComponentRef } from "react";
+import { AppState, Linking, useColorScheme, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
-import type { ShouldStartLoadRequest } from "react-native-webview/lib/WebViewTypes";
+import type {
+  WebViewHttpErrorEvent,
+  ShouldStartLoadRequest,
+  WebViewNavigationEvent,
+} from "react-native-webview/lib/WebViewTypes";
 import { WEB_ORIGIN, WEB_URL } from "./config";
-import { decideNavigation } from "./navigation";
+import { decideNavigation, isMainDocumentFailure } from "./navigation";
 import { appHost } from "./nativeHost";
+import { Offline } from "./Offline";
 import { receiveScript } from "./reply";
 import { paletteFor } from "./theme";
 
@@ -17,16 +22,45 @@ function shouldStart(request: ShouldStartLoadRequest): boolean {
 
 export function Shell() {
   const webView = useRef<ComponentRef<typeof WebView>>(null);
+  const mainUrl = useRef(WEB_URL);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const insets = useSafeAreaInsets();
   const palette = paletteFor(useColorScheme());
+
+  const send = useCallback((message: string) => webView.current?.injectJavaScript(receiveScript(message)), []);
+
+  useEffect(() => {
+    let previous = AppState.currentState;
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next === "active" && previous !== "active") send(appHost.event("resume"));
+      previous = next;
+    });
+    return () => subscription.remove();
+  }, [send]);
+
   const onMessage = (event: WebViewMessageEvent) => {
     appHost
       .handle(event.nativeEvent.data)
       .then((reply) => {
-        if (reply !== null) webView.current?.injectJavaScript(receiveScript(reply));
+        if (reply !== null) send(reply);
       })
       .catch(() => undefined);
   };
+
+  const onLoadStart = (event: WebViewNavigationEvent) => {
+    mainUrl.current = event.nativeEvent.url;
+  };
+  const onError = () => setFailed(true);
+  const onHttpError = (event: WebViewHttpErrorEvent) => {
+    if (isMainDocumentFailure(event.nativeEvent.url, mainUrl.current)) setFailed(true);
+  };
+  const reload = () => webView.current?.reload();
+  const retry = () => {
+    setFailed(false);
+    setAttempt((n) => n + 1);
+  };
+
   return (
     <View
       style={{
@@ -38,15 +72,25 @@ export function Shell() {
         paddingRight: insets.right,
       }}
     >
-      <WebView
-        ref={webView}
-        source={{ uri: WEB_URL }}
-        originWhitelist={[WEB_ORIGIN]}
-        injectedJavaScriptObject={appHost.info()}
-        onMessage={onMessage}
-        onShouldStartLoadWithRequest={shouldStart}
-        style={{ flex: 1, backgroundColor: palette.background }}
-      />
+      {failed ? (
+        <Offline onRetry={retry} />
+      ) : (
+        <WebView
+          key={attempt}
+          ref={webView}
+          source={{ uri: WEB_URL }}
+          originWhitelist={[WEB_ORIGIN]}
+          injectedJavaScriptObject={appHost.info()}
+          onMessage={onMessage}
+          onShouldStartLoadWithRequest={shouldStart}
+          onLoadStart={onLoadStart}
+          onError={onError}
+          onHttpError={onHttpError}
+          onContentProcessDidTerminate={reload}
+          onRenderProcessGone={reload}
+          style={{ flex: 1, backgroundColor: palette.background }}
+        />
+      )}
     </View>
   );
 }

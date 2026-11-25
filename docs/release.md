@@ -19,7 +19,7 @@
 
 이 문서의 명령은 하나도 돌려 보지 않았다(`gh`, `eas`, `wrangler` 모두). `expo config`, `expo prebuild`, `expo export`, 테스트만 이 맥에서 돌렸다.
 
-명령이 보는 환경(eas-cli 27.11.0 소스를 읽은 것이고 돌려 보지는 않았다): `eas build`는 프로필의 `env`를 설정 읽기에 합치고 빌드 서버에도 준다. `eas submit`은 프로필의 `env` 없이 `app.config.ts`를 읽는다. 그래서 `eas submit` 앞에는 필요한 변수를 직접 붙인다(8단계 3번, 9단계 2번). `eas init`, `eas device:create`, `expo config`, `expo prebuild`도 프로필 `env`를 읽는다고 보지 않는다. 이 문서에서 이 명령들은 변수를 앞에 붙였거나, 값이 없어도 되는 경우만 적었다.
+명령이 보는 환경(eas-cli 27.11.0 소스를 읽은 것이고 돌려 보지는 않았다): `eas build`는 프로필의 `env`를 설정 읽기에 합치고 빌드 서버에도 준다. `eas submit`은 프로필의 `env` 없이 `app.config.ts`를 읽는다. `eas device:create`도 프로필의 `env` 없이 설정을 읽는다. 그래서 `eas submit`과 `eas device:create` 앞에는 필요한 변수를 직접 붙인다(6단계 1번, 8단계 3번, 9단계 2번). `eas init`, `expo config`, `expo prebuild`도 프로필 `env`를 읽는다고 보지 않는다. `eas init`은 프로젝트 아이디를 만드는 명령이라 그 값이 없어도 된다. 나머지는 변수를 앞에 붙여 적었다.
 
 읽은 공식 문서(2026-11-25, 내용은 바뀔 수 있다):
 
@@ -127,7 +127,7 @@
 1. 「명령」
    ```
    cd app
-   npx eas-cli device:create        # iPhone 등록(iOS 내부 배포는 기기를 등록해야 한다)
+   EAS_PROJECT_ID=<UUID> npx eas-cli device:create        # iPhone 등록(iOS 내부 배포는 기기를 등록해야 한다). 프로필의 env를 읽지 않아 아이디를 직접 붙인다
    npx eas-cli build --profile preview --platform all
    ```
    Expo 문서: iOS 내부 배포는 유료 Apple 계정과 기기 등록이 필요하고, 새 계정은 등록한 기기가 설치 가능해지기까지 24~72시간이 걸릴 수 있다. 안드로이드는 APK다.
@@ -190,5 +190,5 @@
 | `개인정보 문의처가 자리표시 … 그대로예요` | 방침에 문의처가 없으면 스토어가 거절한다 | 2단계 1번 |
 | 위가 아닌 광고 관련 오류(`AdMob …`, `autolinking.exclude …`) | `app/README.md`의 광고 스위치가 어긋났다 | `app/README.md`의 「광고」 |
 | 내 컴퓨터에서는 통과하는데 클라우드 빌드만 실패 | 클라우드는 `EAS_BUILD_PROFILE`을 직접 준다. `env`의 값이 그 프로필에 없을 수 있다 | `eas.json`의 해당 프로필 `env`를 확인한다 |
-| `eas submit`이 프로젝트 아이디가 없다거나 식별자가 `app.example.yeongkk`라고 함 | `eas submit`은 프로필의 `env`를 읽지 않는다 | 명령 앞에 `APP_IDENTIFIER=… EAS_PROJECT_ID=…`를 붙인다(8단계 3번) |
+| `eas submit`이나 `eas device:create`가 프로젝트 아이디가 없다거나 식별자가 `app.example.yeongkk`라고 함 | 두 명령은 프로필의 `env`를 읽지 않는다 | 명령 앞에 `EAS_PROJECT_ID=…`(제출은 `APP_IDENTIFIER=…`도)를 붙인다(6단계 1번, 8단계 3번) |
 | 웹 배포(`deploy`)가 `개인정보 문의처가 자리표시 … 그대로예요`로 멈춤 | 공개 방침 페이지에 자리표시가 보이는 것을 막는다 | 2단계 1번: `tools/privacy/contact.ts`를 고치고 `npm run privacy`, 합친다 |

@@ -48,6 +48,7 @@ describe("production: 한 규칙씩", () => {
     "https://localhost:8787",
     "https://192.168.0.2",
     "https://[::1]",
+    "https://x.workers.dev:8443",
     "https://x.workers.dev",
     "https://yeongkk.my-account.workers.dev/",
     "https://intranet",

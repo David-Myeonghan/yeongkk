@@ -2,6 +2,7 @@ import { DEFAULT_CONFIG, type RemoteConfig } from "@yk/quiz-core/config";
 import type { Word } from "@yk/quiz-core/types";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { LOCALE } from "../data/locale";
+import { syncAdsWithConfig } from "../platform/ads";
 import type { LoadWordsResult } from "../data/loadWords";
 import type { KeyValue } from "../state/progress";
 import { visuallyHidden } from "./a11y.css";
@@ -51,6 +52,7 @@ export function AppDataProvider(props: { children: ReactNode; fetchFn?: typeof f
         config: (next) => {
           setLiveConfig(next);
           setConfig(next);
+          syncAdsWithConfig(next);
         },
       }),
     [fetchFn, attempt],

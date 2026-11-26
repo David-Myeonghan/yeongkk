@@ -1,8 +1,6 @@
-import { withGradleProperties } from "expo/config-plugins";
 import type { ExpoConfig } from "expo/config";
 import pkg from "./package.json";
 import { PRIVACY_CONTACT } from "../tools/privacy/contact.ts";
-import { withAdsGradleProperties } from "./src/androidGradle.ts";
 import { blockedPermissions } from "./src/androidPermissions.ts";
 import { ADS_MODULE, present, resolveAdsConfig } from "./src/adsConfig.ts";
 import { PLACEHOLDER_IDENTIFIER, assertReleaseReady } from "./src/releaseCheck.ts";
@@ -62,10 +60,4 @@ const config: ExpoConfig = {
   extra: { ads, ...(EAS_PROJECT_ID === undefined ? {} : { eas: { projectId: EAS_PROJECT_ID } }) },
 };
 
-// 안드로이드 광고 모듈은 canary 단계에서만 찾힌다 (src/androidGradle.ts). 광고 없는 빌드는 건드리지 않는다.
-export default ads.enabled
-  ? withGradleProperties(config, (c) => {
-      c.modResults = withAdsGradleProperties(c.modResults, true);
-      return c;
-    })
-  : config;
+export default config;

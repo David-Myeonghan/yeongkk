@@ -1,6 +1,7 @@
 import type { ExpoConfig } from "expo/config";
 import pkg from "./package.json";
 import { PRIVACY_CONTACT } from "../tools/privacy/contact.ts";
+import { blockedPermissions } from "./src/androidPermissions.ts";
 import { ADS_MODULE, present, resolveAdsConfig } from "./src/adsConfig.ts";
 import { PLACEHOLDER_IDENTIFIER, assertReleaseReady } from "./src/releaseCheck.ts";
 import { THEME } from "./src/theme.ts";
@@ -52,6 +53,7 @@ const config: ExpoConfig = {
   ios: { bundleIdentifier: APP_IDENTIFIER, supportsTablet: false, config: { usesNonExemptEncryption: false } },
   android: {
     package: APP_IDENTIFIER,
+    blockedPermissions: blockedPermissions(ads.enabled),
     adaptiveIcon: { foregroundImage: "./assets/adaptive-icon.png", backgroundColor: THEME.light.accent },
   },
   plugins,

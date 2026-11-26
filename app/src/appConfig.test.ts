@@ -28,6 +28,13 @@ describe("app.config.ts", () => {
     expect(config.extra).not.toHaveProperty("eas");
   });
 
+  it("광고 없는 기본 빌드는 광고 식별자 · 저장소 권한을 막는다", async () => {
+    const config = await load({});
+    expect(config.android?.blockedPermissions).toEqual(
+      expect.arrayContaining(["com.google.android.gms.permission.AD_ID", "android.permission.READ_EXTERNAL_STORAGE"]),
+    );
+  });
+
   it("식별자는 APP_IDENTIFIER 한 곳에서 두 OS 로 간다", async () => {
     const config = await load({ APP_IDENTIFIER: "kr.mynmal.app" });
     expect([config.ios?.bundleIdentifier, config.android?.package]).toEqual(["kr.mynmal.app", "kr.mynmal.app"]);

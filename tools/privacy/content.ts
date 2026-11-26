@@ -11,7 +11,7 @@ export interface PrivacyDoc {
   sections: Section[];
 }
 
-export const POLICY_UPDATED = "2026-11-25";
+export const POLICY_UPDATED = "2026-11-27";
 
 const EVENT_DESCRIPTIONS: Record<(typeof EVENT_NAMES)[number], string> = {
   app_open: "앱이나 웹을 열었다. 공유 링크로 들어왔는지(예/아니오)를 함께 담는다.",
@@ -123,7 +123,8 @@ export const policy = (contact: string): PrivacyDoc => ({
     {
       title: "알림",
       blocks: [
-        { p: "결과 화면에서 「월요일에 알려 줄까요?」를 누르면, 앱이 매주 월요일 오전 9시에 알리는 알림 하나를 기기 안에 예약한다. 알림은 기기에서만 만들어진다. 푸시 토큰을 받지 않고, 서버로 아무것도 보내지 않는다. 알림은 웹 화면의 「알림 끄기」나 기기 설정에서 끌 수 있다." },
+        { p: "결과 화면에서 「월요일에 알려 줄까요?」를 누르면, 앱이 매주 월요일 오전 9시쯤(안드로이드는 한 시간까지 늦을 수 있다)에 알리는 알림 하나를 기기 안에 예약한다. 알림은 기기에서만 만들어진다. 푸시 토큰을 받지 않고, 서버로 아무것도 보내지 않는다. 알림은 웹 화면의 「알림 끄기」나 기기 설정에서 끌 수 있다." },
+        { p: "안드로이드 알림 라이브러리(expo-notifications)에는 푸시 알림 부품(Firebase Messaging)이 함께 들어 있다. 이 앱은 푸시 토큰을 요청하지 않고 푸시 설정 파일도 넣지 않는다. 안드로이드 에뮬레이터에서 앱을 켰을 때 그 부품이 시작되지 못했다는 기록(FirebaseApp initialization unsuccessful)을 확인했다. 광고가 없는 안드로이드 빌드는 광고 식별자 권한과 저장소 권한을 선언하지 않는다." },
       ],
     },
     {

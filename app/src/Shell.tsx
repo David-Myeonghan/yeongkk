@@ -1,13 +1,15 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore, type ComponentRef } from "react";
-import { AppState, Linking, useColorScheme, View } from "react-native";
+import { AppState, BackHandler, Linking, Platform, useColorScheme, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import type {
   WebViewHttpErrorEvent,
   ShouldStartLoadRequest,
+  WebViewNavigation,
   WebViewNavigationEvent,
 } from "react-native-webview/lib/WebViewTypes";
 import { WEB_ORIGIN, WEB_URL } from "./config";
+import { backAction } from "./back";
 import { decideNavigation, isMainDocumentFailure } from "./navigation";
 import { appHost } from "./nativeHost";
 import { renderableBanner } from "./bannerState";
@@ -30,6 +32,8 @@ export function Shell() {
   const mainUrl = useRef(WEB_URL);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [canGoBack, setCanGoBack] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState(WEB_URL);
   const insets = useSafeAreaInsets();
   const palette = paletteFor(useColorScheme());
   const requested = useSyncExternalStore(bannerStore.subscribe, bannerStore.get);
@@ -45,6 +49,16 @@ export function Shell() {
     });
     return () => subscription.remove();
   }, [send]);
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return undefined;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (backAction({ canGoBack, offline: failed, currentUrl, startUrl: WEB_URL }) !== "webview-back") return false;
+      webView.current?.goBack();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [canGoBack, currentUrl, failed]);
 
   const onMessage = (event: WebViewMessageEvent) => {
     appHost
@@ -62,8 +76,14 @@ export function Shell() {
   const onHttpError = (event: WebViewHttpErrorEvent) => {
     if (isMainDocumentFailure(event.nativeEvent.url, mainUrl.current)) setFailed(true);
   };
+  const onNavigationStateChange = (state: WebViewNavigation) => {
+    setCanGoBack(state.canGoBack);
+    setCurrentUrl(state.url);
+  };
   const remount = () => {
     setFailed(false);
+    setCanGoBack(false);
+    setCurrentUrl(WEB_URL);
     setAttempt((n) => n + 1);
   };
   const recover = (death: WebViewDeath) => {
@@ -94,6 +114,7 @@ export function Shell() {
           onMessage={onMessage}
           onShouldStartLoadWithRequest={shouldStart}
           onLoadStart={onLoadStart}
+          onNavigationStateChange={onNavigationStateChange}
           onError={onError}
           onHttpError={onHttpError}
           onContentProcessDidTerminate={() => recover("ios-content-process-terminated")}

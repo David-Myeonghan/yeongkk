@@ -35,6 +35,17 @@ function build(src: Record<string, unknown>): AdsConfig {
 
 export const ADS_MODULE = "react-native-google-mobile-ads";
 
+export const ADS_NATIVE_MODULE = "RNGoogleMobileAdsModule";
+
+// 라이브러리를 import 하다 던지면 개발 빌드에서 잡아도 "Uncaught Error" 상자가 뜬다. import 전에 등록 여부를 먼저 본다.
+export function adsModuleAvailable(lookup: (name: string) => unknown): boolean {
+  try {
+    return lookup(ADS_NATIVE_MODULE) !== null;
+  } catch {
+    return false;
+  }
+}
+
 export class AdsSettingsError extends Error {}
 
 export const present = (raw: string | undefined): string | undefined => (raw === undefined || raw.trim() === "" ? undefined : raw);

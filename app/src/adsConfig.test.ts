@@ -1,5 +1,8 @@
+import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { adsFromExtra, AdsSettingsError, bannerUnitId, GOOGLE_TEST_IDS, resolveAdsConfig } from "./adsConfig";
+import { adsFromExtra, AdsSettingsError, ADS_MODULE, ADS_NATIVE_MODULE, adsModuleAvailable, bannerUnitId, GOOGLE_TEST_IDS, resolveAdsConfig } from "./adsConfig";
 
 const IOS_APP = "ca-app-pub-3940256099942544~1458002511";
 const ANDROID_APP = "ca-app-pub-3940256099942544~3347511713";
@@ -103,5 +106,34 @@ describe("adsFromExtra", () => {
   it("없거나 이상하면 꺼진다 (뜻: 런타임이 extra 를 믿고 켜면 잡힘)", () => {
     const bad = [undefined, null, {}, { ads: null }, { ads: { enabled: true } }, { ads: { enabled: true, iosAppId: "x", androidAppId: "y" } }];
     for (const extra of bad) expect(adsFromExtra(extra)).toEqual({ enabled: false });
+  });
+});
+
+describe("adsModuleAvailable", () => {
+  it("네이티브 모듈이 등록돼 있으면 참 (뜻: 이름이 틀리면 잡힘)", () => {
+    const asked: string[] = [];
+    expect(adsModuleAvailable((name) => (asked.push(name), {}))).toBe(true);
+    expect(asked).toEqual([ADS_NATIVE_MODULE]);
+  });
+
+  it("없으면 거짓 — 가져오기(import)를 하기 전에 알아야 빨간 오류 상자가 안 뜬다", () => {
+    expect(adsModuleAvailable(() => null)).toBe(false);
+  });
+
+  it("조회가 던지면 거짓", () => {
+    expect(
+      adsModuleAvailable(() => {
+        throw new Error("x");
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("ADS_NATIVE_MODULE", () => {
+  it("설치된 광고 라이브러리가 등록하는 네이티브 모듈 이름과 같다 (뜻: 이름이 틀리거나 라이브러리가 바꾸면 광고가 소리 없이 꺼지므로 여기서 잡힘)", () => {
+    const root = dirname(createRequire(import.meta.url).resolve(`${ADS_MODULE}/package.json`));
+    const spec = join(root, "src", "specs", "modules", "NativeGoogleMobileAdsModule.ts");
+    expect(existsSync(spec), `${spec} 가 없어요. 라이브러리가 파일을 옮겼으면 이 경로를 고치세요`).toBe(true);
+    expect(readFileSync(spec, "utf8")).toContain(`getEnforcing<Spec>('${ADS_NATIVE_MODULE}')`);
   });
 });

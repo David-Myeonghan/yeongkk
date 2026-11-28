@@ -10,8 +10,8 @@
 
 아무도 확인하지 않은 것:
 
-- 실제 폰이나 시뮬레이터에서 앱을 연 적이 없다. 이 맥에는 Xcode가 없다. `docs/device-checklist.md`가 비어 있다.
-- `eas build`, `eas submit`을 돌린 적이 없다. Expo 계정, Apple Developer 계정, Google Play 계정으로 로그인한 적이 없다. 두 OS의 실제 네이티브 빌드(Gradle, CocoaPods)는 돌려 본 적이 없다.
+- 진짜 폰과 iOS에서 앱을 연 적이 없다. 이 맥에는 Xcode가 없다(Expo SDK 58은 Xcode 26.4 이상, 그것은 macOS 26.2 이상이 필요한데 이 맥은 14.5). 안드로이드 에뮬레이터(안드로이드 13)에서는 디버그 빌드로 돌려 봤고(2026-11-27), `docs/device-checklist.md`의 안드로이드 칸이 그 결과다. iOS 칸은 비어 있다.
+- `eas build`, `eas submit`을 돌린 적이 없다. Expo 계정, Apple Developer 계정, Google Play 계정으로 로그인한 적이 없다. 안드로이드는 이 맥에서 Gradle로 디버그와 릴리스(디버그 키 서명) 빌드를 했다(2026-11-27). EAS 클라우드 빌드, 스토어 서명 빌드, iOS(CocoaPods · Xcode)는 돌려 본 적이 없다.
 - 웹 배포는 한 번도 성공하지 못했다(`docs/adr/0004-one-worker-hosting.md`). `STATS_TOKEN`은 만들지 않았다. D1은 만들지 않았다.
 - 스토어 양식(`docs/store/`)은 코드에서 뽑은 초안이고 어느 스토어 화면에도 넣어 본 적이 없다.
 - 게시된 단어가 0개다.
@@ -135,10 +135,13 @@
 2. 「사람」 실제 iPhone 한 대와 안드로이드 폰 한 대에 설치한다.
 3. 「사람」 `docs/device-checklist.md`의 표를 위에서 아래로 채운다. 광고 줄(D26~D31)은 7단계 빌드에서 한다.
    성공하면: 광고 줄을 뺀 모든 줄에 결과가 적혀 있고, 「실패」가 없다.
+   안드로이드 칸은 에뮬레이터에서 한 번 채웠다(2026-11-27). 진짜 폰에서 다시 확인해야 하는 줄(진동 D13, 망 변화 D14, 알림이 실제로 몇 시에 오는지 D34, 제조사 알림 정책)과 iOS 칸 전부가 남았다. 알림은 「월요일 오전 9시쯤, 안드로이드는 한 시간까지 늦을 수 있다」로 적는다. 정확한 알람 권한(`SCHEDULE_EXACT_ALARM` · `USE_EXACT_ALARM`)은 일부러 쓰지 않는다.
 
 ## 7. (선택) 광고 빌드
 
 광고는 기본이 꺼짐이다. 켜려면 `app/README.md`의 두 스위치를 함께 켠다: `expo.autolinking.exclude`에서 `react-native-google-mobile-ads`를 빼고, AdMob 앱 아이디 둘(`ADMOB_IOS_APP_ID`, `ADMOB_ANDROID_APP_ID`)을 해당 프로필의 `env`에 적는다(`eas build`가 읽는다. 배너 아이디 `EXPO_PUBLIC_ADMOB_*`도 같다). 어긋나면 설정을 읽을 때 멈춘다. `eas submit`도 같은 설정을 읽으므로, 광고 빌드를 제출할 때는 아래 3번 명령 앞에 `ADMOB_*` 둘도 붙인다.
+안드로이드 에뮬레이터에서는 시험용 아이디의 디버그 빌드에서 구글 시험 배너가 떴다(D29). 다만 첫 빌드는 「RNGoogleMobileAdsModule could not be found」로 광고가 안 켜졌고(앱은 오류 없이 광고만 끈다), 같은 설정으로 새로 만든 빌드에서는 재현하지 못했다. 원인은 모른다. 광고 빌드를 만들면 배너가 실제로 뜨는지 먼저 본다(`docs/device-checklist.md` D29 · D31). 안 뜨는데 원격 설정 `ads`만 켜 두면 광고 없이 돈다.
+
 순서(제안): 시험용 아이디로 `preview` 빌드 → 실기기에서 D26~D31 → 진짜 아이디로 바꿈 → 원격 설정 `features.ads`를 켜는 PR → `docs/store/app-privacy.md`의 B 표로 양식을 낸다.
 
 ## 8. production 빌드와 App Store

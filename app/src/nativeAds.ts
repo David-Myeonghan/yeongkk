@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
-import { Platform } from "react-native";
-import { adsFromExtra, bannerUnitId } from "./adsConfig";
+import { Platform, TurboModuleRegistry } from "react-native";
+import { adsFromExtra, adsModuleAvailable, bannerUnitId } from "./adsConfig";
 import { createConsentGate } from "./adsConsent";
 import { createBannerStore } from "./bannerState";
 import type { AdsDeps } from "./host";
@@ -8,8 +8,16 @@ import type { AdsDeps } from "./host";
 export const adsConfig = adsFromExtra(Constants.expoConfig?.extra);
 export const bannerStore = createBannerStore();
 
+async function library() {
+  if (!adsModuleAvailable((name) => TurboModuleRegistry.get(name))) {
+    console.warn("광고 네이티브 모듈이 이 빌드에 없어요. 광고를 켠 개발 빌드는 새로 만들어야 해요.");
+    throw new Error("광고 네이티브 모듈이 이 빌드에 없어요");
+  }
+  return import("react-native-google-mobile-ads");
+}
+
 async function gather() {
-  const { AdsConsent } = await import("react-native-google-mobile-ads");
+  const { AdsConsent } = await library();
   const info = await AdsConsent.gatherConsent();
   const gdprApplies = await AdsConsent.getGdprApplies();
   const choices = await AdsConsent.getUserChoices();
@@ -17,7 +25,7 @@ async function gather() {
 }
 
 async function initialize() {
-  const { default: mobileAds } = await import("react-native-google-mobile-ads");
+  const { default: mobileAds } = await library();
   await mobileAds().initialize();
 }
 

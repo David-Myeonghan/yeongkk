@@ -70,7 +70,7 @@ export function resolveAdsConfig(env: AdsEnv, opts: { excludedModules: readonly 
   const nativeModuleExcluded = left.length === 0;
   if (!nativeModuleExcluded && left.length < ADS_MODULES.length) {
     throw new AdsSettingsError(
-      `app/package.json 의 expo.autolinking.exclude 에서 ${BOTH} 는 함께 넣거나 함께 빼야 해요. 지금 ${left.join(", ")} 만 빠져 있어요. 기본 빌드에 추적 라이브러리가 링크되거나 광고 빌드에서 광고 동의 창이 빠져요.`,
+      `app/package.json 의 expo.autolinking.exclude 에서 ${BOTH} 는 함께 넣거나 함께 빼야 해요. 지금 ${left.join(", ")} 만 빠져 있어요. 기본 빌드에 추적 라이브러리가 링크되거나, 광고 빌드에서 iOS 추적 허용 창이 뜨지 않고 늘 비맞춤 광고만 요청해요.`,
     );
   }
   const both = iosAppId !== undefined && androidAppId !== undefined;

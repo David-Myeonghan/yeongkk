@@ -2,15 +2,15 @@ import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { adsFromExtra, AdsSettingsError, ADS_MODULE, ADS_NATIVE_MODULE, adsModuleAvailable, bannerUnitId, GOOGLE_TEST_IDS, resolveAdsConfig } from "./adsConfig";
+import { adsFromExtra, AdsSettingsError, ADS_MODULE, ADS_MODULES, ADS_NATIVE_MODULE, TRACKING_MODULE, adsModuleAvailable, bannerUnitId, GOOGLE_TEST_IDS, resolveAdsConfig } from "./adsConfig";
 
 const IOS_APP = "ca-app-pub-3940256099942544~1458002511";
 const ANDROID_APP = "ca-app-pub-3940256099942544~3347511713";
 const OWN_UNIT = "ca-app-pub-1111111111111111/2222222222";
 const base = { ADMOB_IOS_APP_ID: IOS_APP, ADMOB_ANDROID_APP_ID: ANDROID_APP };
 
-const IN = { nativeModuleExcluded: false };
-const OUT = { nativeModuleExcluded: true };
+const IN = { excludedModules: [] as readonly string[] };
+const OUT = { excludedModules: ADS_MODULES };
 const inBuild = (env: Record<string, string | undefined>) => resolveAdsConfig(env, IN);
 
 describe("resolveAdsConfig — 네 경우", () => {
@@ -31,6 +31,35 @@ describe("resolveAdsConfig — 네 경우", () => {
 
   it("포함 + 올바른 아이디 → 켜짐", () => {
     expect(resolveAdsConfig(base, IN)).toEqual({ enabled: true, iosAppId: IOS_APP, androidAppId: ANDROID_APP });
+  });
+});
+
+describe("resolveAdsConfig — 두 네이티브 모듈은 함께 제외하거나 함께 뺀다", () => {
+  const ONLY_ADS = { excludedModules: [ADS_MODULE] as readonly string[] };
+  const ONLY_TRACKING = { excludedModules: [TRACKING_MODULE] as readonly string[] };
+
+  it("광고 모듈과 추적 투명성 모듈이 둘 다 제외 대상이다 (뜻: 하나가 빠지면 기본 빌드가 추적 라이브러리를 링크한다)", () => {
+    expect([...ADS_MODULES].sort()).toEqual(["expo-tracking-transparency", "react-native-google-mobile-ads"]);
+  });
+
+  it("하나만 제외된 상태는 아이디가 없어도 있어도 오류, 어느 쪽이 남았는지 알려 준다 (뜻: 한쪽만 제외해도 통과하면 잡힘)", () => {
+    for (const env of [{}, base]) {
+      expect(() => resolveAdsConfig(env, ONLY_ADS)).toThrow(AdsSettingsError);
+      expect(() => resolveAdsConfig(env, ONLY_ADS)).toThrow(/함께 넣거나 함께 빼야 해요[\s\S]*expo-tracking-transparency/);
+      expect(() => resolveAdsConfig(env, ONLY_TRACKING)).toThrow(/함께 넣거나 함께 빼야 해요[\s\S]*react-native-google-mobile-ads/);
+    }
+  });
+
+  it("두 모듈 이름이 오류 안내에 들어간다 (뜻: 안내가 한 패키지만 말하면 잡힘)", () => {
+    expect(() => resolveAdsConfig(base, OUT)).toThrow(new RegExp(`${ADS_MODULE}[\\s\\S]*${TRACKING_MODULE}`));
+    expect(() => resolveAdsConfig({}, IN)).toThrow(new RegExp(`${ADS_MODULE}[\\s\\S]*${TRACKING_MODULE}`));
+  });
+});
+
+describe("app/package.json 의 제외 목록", () => {
+  it("기본 상태에서 두 네이티브 모듈이 모두 제외돼 있다 (뜻: 하나가 빠지면 기본 iOS 빌드가 추적 프레임워크를 링크한다)", () => {
+    const pkg: { expo: { autolinking: { exclude: string[] } } } = JSON.parse(readFileSync(join(import.meta.dirname, "..", "package.json"), "utf8"));
+    expect([...pkg.expo.autolinking.exclude].sort()).toEqual([...ADS_MODULES].sort());
   });
 });
 

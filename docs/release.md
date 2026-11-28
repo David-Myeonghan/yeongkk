@@ -139,8 +139,9 @@
 
 ## 7. (선택) 광고 빌드
 
-광고는 기본이 꺼짐이다. 켜려면 `app/README.md`의 두 스위치를 함께 켠다: `expo.autolinking.exclude`에서 `react-native-google-mobile-ads`를 빼고, AdMob 앱 아이디 둘(`ADMOB_IOS_APP_ID`, `ADMOB_ANDROID_APP_ID`)을 해당 프로필의 `env`에 적는다(`eas build`가 읽는다. 배너 아이디 `EXPO_PUBLIC_ADMOB_*`도 같다). 어긋나면 설정을 읽을 때 멈춘다. `eas submit`도 같은 설정을 읽으므로, 광고 빌드를 제출할 때는 아래 3번 명령 앞에 `ADMOB_*` 둘도 붙인다.
+광고는 기본이 꺼짐이다. 켜려면 `app/README.md`의 두 스위치를 함께 켠다: `expo.autolinking.exclude`에서 `react-native-google-mobile-ads`와 `expo-tracking-transparency` 둘을 다 빼고, AdMob 앱 아이디 둘(`ADMOB_IOS_APP_ID`, `ADMOB_ANDROID_APP_ID`)을 해당 프로필의 `env`에 적는다(`eas build`가 읽는다. 배너 아이디 `EXPO_PUBLIC_ADMOB_*`도 같다). 어긋나면 설정을 읽을 때 멈춘다. `eas submit`도 같은 설정을 읽으므로, 광고 빌드를 제출할 때는 아래 3번 명령 앞에 `ADMOB_*` 둘도 붙인다.
 안드로이드 에뮬레이터에서는 시험용 아이디의 디버그 빌드에서 구글 시험 배너가 떴다(D29). 다만 첫 빌드는 「RNGoogleMobileAdsModule could not be found」로 광고가 안 켜졌고(앱은 오류 없이 광고만 끈다), 같은 설정으로 새로 만든 빌드에서는 재현하지 못했다. 원인은 모른다. 광고 빌드를 만들면 배너가 실제로 뜨는지 먼저 본다(`docs/device-checklist.md` D29 · D31). 안 뜨는데 원격 설정 `ads`만 켜 두면 광고 없이 돈다.
+iOS 광고 빌드의 `Info.plist`에는 `SKAdNetworkItems`로 구글의 식별자 `cstr6suwn9.skadnetwork` 하나만 들어간다(`app/app.config.ts`, 광고 플러그인의 `skAdNetworkItems` 옵션). 구글은 광고 구매자 식별자를 더 긴 목록으로 공개하므로, 진짜 광고를 내보내기 전에 그 목록을 같은 옵션에 붙여 넣는다. 지금 값만으로는 일부 구매자가 빠질 수 있다.
 
 순서(제안): 시험용 아이디로 `preview` 빌드 → 실기기에서 D26~D31 → 진짜 아이디로 바꿈 → 원격 설정 `features.ads`를 켜는 PR → `docs/store/app-privacy.md`의 B 표로 양식을 낸다.
 

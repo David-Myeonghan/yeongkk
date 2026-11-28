@@ -32,19 +32,20 @@
 
 ## 광고
 
-광고는 빌드할 때 고르는 선택 사항이다. 기본 상태는 꺼짐이다. `app/package.json`의 `expo.autolinking.exclude`에 `react-native-google-mobile-ads`가 들어 있어서, 기본 빌드에는 광고 SDK가 두 OS 모두에 아예 들어가지 않는다. Expo Go도 그대로 된다.
+광고는 빌드할 때 고르는 선택 사항이다. 기본 상태는 꺼짐이다. `app/package.json`의 `expo.autolinking.exclude`에 `react-native-google-mobile-ads`와 `expo-tracking-transparency` 둘이 들어 있어서, 기본 빌드에는 광고 SDK도 추적 허용(ATT) 라이브러리도 두 OS 모두에 아예 들어가지 않는다. 추적 라이브러리가 빠지므로 iOS 기본 빌드는 AdSupport · AppTrackingTransparency 프레임워크를 링크하지 않고, 추적 문구(`NSUserTrackingUsageDescription`)가 없는 것과 어긋나지 않는다. Expo Go도 그대로 된다.
 
 광고를 넣는 빌드는 스위치 둘을 함께 켠다.
 
-1. `app/package.json`의 `expo.autolinking.exclude`에서 `react-native-google-mobile-ads`를 뺀다.
+1. `app/package.json`의 `expo.autolinking.exclude`에서 `react-native-google-mobile-ads`와 `expo-tracking-transparency`를 둘 다 뺀다.
 2. 아래 AdMob 앱 아이디 환경 변수 둘을 모두 준다.
 
 `app.config.ts`가 둘이 맞는지 설정을 읽을 때 검사하고, 어긋나면 빌드를 멈춘다. 안드로이드 광고 SDK는 앱 아이디가 없으면 시작할 때 죽는다고 구글이 적었다(「Missing application ID.」).
 
 - 제외를 뺐는데 앱 아이디가 없다 -> 오류. 이대로 만들면 앱이 시작하자마자 죽는다.
 - 앱 아이디를 줬는데 제외가 남아 있다 -> 오류. 광고를 켠 줄 알겠지만 광고 코드가 빌드에 없다.
+- 두 모듈 중 하나만 제외돼 있다 -> 오류(아이디가 있든 없든). 어느 쪽이 빠져 있는지 알려 준다.
 - 앱 아이디 하나만 있거나 모양이 틀리다 -> 오류. 조용히 끄지 않는다.
-- 제외가 있고 아이디가 없다 -> 광고 꺼짐(기본). 둘 다 있다 -> 광고 켜짐.
+- 둘 다 제외돼 있고 아이디가 없다 -> 광고 꺼짐(기본). 둘 다 빼고 아이디 둘이 있다 -> 광고 켜짐.
 
 - `ADMOB_IOS_APP_ID`, `ADMOB_ANDROID_APP_ID` 앱 아이디. 있으면 `app.config.ts`가 `react-native-google-mobile-ads`와 `expo-tracking-transparency` 플러그인, iOS 추적 문구(`NSUserTrackingUsageDescription`)를 넣는다.
 - `EXPO_PUBLIC_ADMOB_IOS_BANNER_ID`, `EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID` 배너 단위 아이디(`ca-app-pub-숫자16/숫자10`). 개발 빌드에서 비우면 구글 시험용 단위 아이디를 쓴다. 배포 빌드에서 비우면 배너를 띄우지 않는다.
@@ -137,7 +138,7 @@ Expo Go: 문서에 따르면 로컬 알림은 Expo Go에서 된다. 원격 푸�
 
 `app.config.ts`가 `android.blockedPermissions`(`src/androidPermissions.ts`의 `blockedPermissions(광고 여부)`)로 앱이 쓰지 않는 권한을 합친 매니페스트에서 뺀다. 2026-11-27 빌드에서 확인한 출처:
 
-- `com.google.android.gms.permission.AD_ID`: `expo-tracking-transparency` → `play-services-ads-identifier:18.0.1`. 광고 빌드에서는 막지 않는다(광고 플러그인이 더한다).
+- `com.google.android.gms.permission.AD_ID`: 2026-11-27에는 `expo-tracking-transparency` → `play-services-ads-identifier:18.0.1`이 들고 왔다. 지금은 그 모듈이 기본 빌드에서 제외되므로 이 길로는 오지 않는다. 막는 목록에는 그대로 남겨 두어, 다른 의존이 같은 권한을 끌고 와도 기본 빌드에서 빠지게 한다. 이 변경 뒤의 안드로이드 빌드는 다시 만들어 보지 않았다. 광고 빌드에서는 막지 않는다(광고 플러그인이 더한다).
 - `READ_EXTERNAL_STORAGE` · `WRITE_EXTERNAL_STORAGE` · `SYSTEM_ALERT_WINDOW`: `expo prebuild` 템플릿의 앱 매니페스트. `SYSTEM_ALERT_WINDOW`는 릴리스에서 빠지지만 디버그 빌드에는 React Native의 디버그 매니페스트가 다시 넣는다.
 - `com.google.android.c2dm.permission.RECEIVE`(와 `WAKE_LOCK` 일부): `expo-notifications` → `firebase-messaging:25.0.1`. `WAKE_LOCK`은 남긴다.
 - `BIND_GET_INSTALL_REFERRER_SERVICE`: `expo-notifications`의 의존 `expo-application` → `installreferrer:2.2`.

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { AD_ID, blockedPermissions, KEPT_PERMISSIONS } from "./androidPermissions";
 
 describe("blockedPermissions", () => {
-  it("광고가 없는 빌드는 광고 식별자 권한을 막는다 (tracking-transparency 가 들고 옴)", () => {
+  it("광고가 없는 빌드는 광고 식별자 권한을 막는다 (뜻: 다른 의존이 끌고 와도 기본 빌드에서 빠진다)", () => {
     expect(blockedPermissions(false)).toContain(AD_ID);
   });
 

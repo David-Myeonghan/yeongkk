@@ -33,6 +33,7 @@ export function Shell() {
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [canGoBack, setCanGoBack] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState(WEB_URL);
   const insets = useSafeAreaInsets();
   const palette = paletteFor(useColorScheme());
   const requested = useSyncExternalStore(bannerStore.subscribe, bannerStore.get);
@@ -52,12 +53,12 @@ export function Shell() {
   useEffect(() => {
     if (Platform.OS !== "android") return undefined;
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (backAction({ canGoBack, offline: failed }) !== "webview-back") return false;
+      if (backAction({ canGoBack, offline: failed, currentUrl, startUrl: WEB_URL }) !== "webview-back") return false;
       webView.current?.goBack();
       return true;
     });
     return () => subscription.remove();
-  }, [canGoBack, failed]);
+  }, [canGoBack, currentUrl, failed]);
 
   const onMessage = (event: WebViewMessageEvent) => {
     appHost
@@ -75,10 +76,14 @@ export function Shell() {
   const onHttpError = (event: WebViewHttpErrorEvent) => {
     if (isMainDocumentFailure(event.nativeEvent.url, mainUrl.current)) setFailed(true);
   };
-  const onNavigationStateChange = (state: WebViewNavigation) => setCanGoBack(state.canGoBack);
+  const onNavigationStateChange = (state: WebViewNavigation) => {
+    setCanGoBack(state.canGoBack);
+    setCurrentUrl(state.url);
+  };
   const remount = () => {
     setFailed(false);
     setCanGoBack(false);
+    setCurrentUrl(WEB_URL);
     setAttempt((n) => n + 1);
   };
   const recover = (death: WebViewDeath) => {

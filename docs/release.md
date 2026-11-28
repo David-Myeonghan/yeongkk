@@ -10,8 +10,8 @@
 
 아무도 확인하지 않은 것:
 
-- 진짜 폰과 iOS에서 앱을 연 적이 없다. 이 맥에는 Xcode가 없다(Expo SDK 58은 Xcode 26.4 이상, 그것은 macOS 26.2 이상이 필요한데 이 맥은 14.5). 안드로이드 에뮬레이터(안드로이드 13)에서는 디버그 빌드로 돌려 봤고(2026-11-27), `docs/device-checklist.md`의 안드로이드 칸이 그 결과다. iOS 칸은 비어 있다.
-- `eas build`, `eas submit`을 돌린 적이 없다. Expo 계정, Apple Developer 계정, Google Play 계정으로 로그인한 적이 없다. 안드로이드는 이 맥에서 Gradle로 디버그와 릴리스(디버그 키 서명) 빌드를 했다(2026-11-27). EAS 클라우드 빌드, 스토어 서명 빌드, iOS(CocoaPods · Xcode)는 돌려 본 적이 없다.
+- 진짜 폰에서 앱을 연 적이 없다. 안드로이드 에뮬레이터(안드로이드 13)에서는 디버그 빌드로 돌려 봤고(2026-11-27), iOS는 iPhone 18 Pro 시뮬레이터(iOS 27.2, Xcode 27.2)에서 디버그와 릴리스 빌드로 돌려 봤다(2026-11-28, AI가 화면을 조작했다). `docs/device-checklist.md`의 두 칸이 그 결과다. 시뮬레이터는 진동 · 알림이 실제로 오는 것 · 망 변화 · 메일 · 전화 넘기기 · 회전 · 실제 서명 · 실제 광고를 보여 주지 못한다.
+- `eas build`, `eas submit`을 돌린 적이 없다. Expo 계정, Apple Developer 계정, Google Play 계정으로 로그인한 적이 없다. 안드로이드는 이 맥에서 Gradle로 디버그와 릴리스(디버그 키 서명) 빌드를 했다(2026-11-27). EAS 클라우드 빌드와 스토어 서명 빌드는 돌려 본 적이 없다. iOS는 이 맥에서 `expo prebuild` · CocoaPods · `xcodebuild`로 시뮬레이터용 디버그와 릴리스(서명 없음)를 만들었다(2026-11-28). 서명한 아카이브 · TestFlight 처리는 하지 않았다.
 - 웹 배포는 한 번도 성공하지 못했다(`docs/adr/0004-one-worker-hosting.md`). `STATS_TOKEN`은 만들지 않았다. D1은 만들지 않았다.
 - 스토어 양식(`docs/store/`)은 코드에서 뽑은 초안이고 어느 스토어 화면에도 넣어 본 적이 없다.
 - 게시된 단어가 0개다.
@@ -135,12 +135,13 @@
 2. 「사람」 실제 iPhone 한 대와 안드로이드 폰 한 대에 설치한다.
 3. 「사람」 `docs/device-checklist.md`의 표를 위에서 아래로 채운다. 광고 줄(D26~D31)은 7단계 빌드에서 한다.
    성공하면: 광고 줄을 뺀 모든 줄에 결과가 적혀 있고, 「실패」가 없다.
-   안드로이드 칸은 에뮬레이터에서 한 번 채웠다(2026-11-27). 진짜 폰에서 다시 확인해야 하는 줄(진동 D13, 망 변화 D14, 알림이 실제로 몇 시에 오는지 D34, 제조사 알림 정책)과 iOS 칸 전부가 남았다. 알림은 「월요일 오전 9시쯤, 안드로이드는 한 시간까지 늦을 수 있다」로 적는다. 정확한 알람 권한(`SCHEDULE_EXACT_ALARM` · `USE_EXACT_ALARM`)은 일부러 쓰지 않는다.
+   안드로이드 칸은 에뮬레이터에서 한 번 채웠다(2026-11-27). iOS 칸은 시뮬레이터에서 한 번 채웠다(2026-11-28). 진짜 폰에서 다시 확인해야 하는 줄(진동 D13, 망 변화 D14, 알림이 실제로 몇 시에 오는지 D34, 제조사 알림 정책)이 남았고, iOS는 진짜 기기 한 대에서 같은 표를 다시 본다. 알림은 「월요일 오전 9시쯤, 안드로이드는 한 시간까지 늦을 수 있다」로 적는다. 정확한 알람 권한(`SCHEDULE_EXACT_ALARM` · `USE_EXACT_ALARM`)은 일부러 쓰지 않는다.
 
 ## 7. (선택) 광고 빌드
 
-광고는 기본이 꺼짐이다. 켜려면 `app/README.md`의 두 스위치를 함께 켠다: `expo.autolinking.exclude`에서 `react-native-google-mobile-ads`를 빼고, AdMob 앱 아이디 둘(`ADMOB_IOS_APP_ID`, `ADMOB_ANDROID_APP_ID`)을 해당 프로필의 `env`에 적는다(`eas build`가 읽는다. 배너 아이디 `EXPO_PUBLIC_ADMOB_*`도 같다). 어긋나면 설정을 읽을 때 멈춘다. `eas submit`도 같은 설정을 읽으므로, 광고 빌드를 제출할 때는 아래 3번 명령 앞에 `ADMOB_*` 둘도 붙인다.
+광고는 기본이 꺼짐이다. 켜려면 `app/README.md`의 두 스위치를 함께 켠다: `expo.autolinking.exclude`에서 `react-native-google-mobile-ads`와 `expo-tracking-transparency` 둘을 다 빼고, AdMob 앱 아이디 둘(`ADMOB_IOS_APP_ID`, `ADMOB_ANDROID_APP_ID`)을 해당 프로필의 `env`에 적는다(`eas build`가 읽는다. 배너 아이디 `EXPO_PUBLIC_ADMOB_*`도 같다). 어긋나면 설정을 읽을 때 멈춘다. `eas submit`도 같은 설정을 읽으므로, 광고 빌드를 제출할 때는 아래 3번 명령 앞에 `ADMOB_*` 둘도 붙인다.
 안드로이드 에뮬레이터에서는 시험용 아이디의 디버그 빌드에서 구글 시험 배너가 떴다(D29). 다만 첫 빌드는 「RNGoogleMobileAdsModule could not be found」로 광고가 안 켜졌고(앱은 오류 없이 광고만 끈다), 같은 설정으로 새로 만든 빌드에서는 재현하지 못했다. 원인은 모른다. 광고 빌드를 만들면 배너가 실제로 뜨는지 먼저 본다(`docs/device-checklist.md` D29 · D31). 안 뜨는데 원격 설정 `ads`만 켜 두면 광고 없이 돈다.
+iOS 광고 빌드의 `Info.plist`에는 `SKAdNetworkItems`로 구글의 식별자 `cstr6suwn9.skadnetwork` 하나만 들어간다(`app/app.config.ts`, 광고 플러그인의 `skAdNetworkItems` 옵션). 구글은 광고 구매자 식별자를 더 긴 목록으로 공개하므로, 진짜 광고를 내보내기 전에 그 목록을 같은 옵션에 붙여 넣는다. 지금 값만으로는 일부 구매자가 빠질 수 있다.
 
 순서(제안): 시험용 아이디로 `preview` 빌드 → 실기기에서 D26~D31 → 진짜 아이디로 바꿈 → 원격 설정 `features.ads`를 켜는 PR → `docs/store/app-privacy.md`의 B 표로 양식을 낸다.
 
@@ -177,6 +178,17 @@
 3. 「사람」 데이터 보안 양식(`docs/store/app-privacy.md`), 콘텐츠 등급, 대상 연령(16세 이상), 처리방침 URL을 Play Console에 넣는다.
 4. 「사람」 개인 계정을 2023-11-13 이후에 만들었다면 production 전에 비공개 테스트를 한다. 테스터 12명 이상이 14일 연속 참여해야 한다(Google 도움말). 12명을 모으고 14일을 센다.
    성공하면: 14일 뒤 Play Console이 production 신청을 열어 준다. 계정을 그 전에 만들었다면 이 요구가 없을 수 있다. Console 화면의 안내를 따른다.
+
+## iOS 시뮬레이터 점검에서 일부러 그대로 둔 것 (2026-11-28)
+
+릴리스 전에 알아 둘 것이다. 고치지 않았고, 고칠지는 그때 정한다.
+
+- 개인정보 처리방침 페이지에는 iOS에서 가장자리를 밀어 뒤로 가는 길이 없다(웹뷰의 뒤로 가기 제스처를 켜지 않았다). 방침 위와 아래의 「← 뭔말이야로 돌아가기」 링크로 홈에 돌아온다. 아래 링크가 있고 눌러 홈으로 돌아가는 것을 시뮬레이터에서 확인했다.
+- 릴리스 `Info.plist`에 `NSAllowsLocalNetworking`(로컬 주소 http 허용)과 URL 스킴 `exp+yeongkk`(개발 클라이언트가 더한다)가 남아 있다. `NSAllowsArbitraryLoads`는 꺼져 있다. 스토어 빌드에서 이 둘을 빼는지는 아직 정하지 않았다.
+- iOS 공유는 글과 링크를 두 항목으로 보낸다. 공유창의 「복사」는 글만 복사하고 링크는 들어가지 않는다. 안드로이드는 한 덩어리 글이다(D09 · D11).
+- 설정에서 이 앱의 알림을 끄면 iOS가 예약된 요청을 지운다. 다음에 결과 화면을 열면 「월요일에 알려 줄까요?」가 다시 보이고, 누르면 설정 안내가 나온다(D33).
+- 권한 창(알림 · 추적)의 문구는 시뮬레이터에서 영어였다. 앱 번들의 `CFBundleDevelopmentRegion`은 `en`이고 `CFBundleLocalizations`와 `.lproj` 폴더가 없으며, 시뮬레이터의 언어 목록은 `en-KR`이 먼저였다. 한국어가 첫 언어인 기기에서도 영어인지는 보지 않았다. 앱이 정한 추적 이유 문장(`NSUserTrackingUsageDescription`)만 한국어로 보인다.
+- 알림 예약이 실패한 적이 있다(`UNErrorDomain` 2003 「Source is not authorized」). 처음 설치해 「허용」을 누른 직후였고 설정에는 알림이 켜져 있었다. 같은 환경에서 다시 설치한 두 번은 되었다. 앱을 고친 뒤 확인하다가 한 설치에서 같은 실패가 다시 났고(허용 뒤 예약 실패, 같은 설치에서 다시 눌러도 실패), 앱을 지우고 다시 깔자 정상으로 예약됐다. 두 번 다 SpringBoard가 「Dropping records because local client does not exist」를 남겼다. 원인은 모른다. 앱은 네이티브 재시도를 넣지 않았다. 대신 웹이 실패를 「앱에 기능이 없음」과 구분해서, 실패하면 「월요일에 알려 줄까요?」를 남겨 다시 누를 수 있게 했다. 진짜 기기에서 나는지는 모른다.
 
 ## 멈췄을 때 (설정을 읽을 때 나오는 오류)
 

@@ -7,8 +7,15 @@ const VALID = {
   EAS_PROJECT_ID: "11111111-2222-3333-4444-555555555555",
 };
 
-async function load(env: Record<string, string>, contact?: string) {
+async function load(env: Record<string, string>, contact?: string, exclude?: string[]) {
   vi.resetModules();
+  vi.doUnmock("../package.json");
+  if (exclude !== undefined) {
+    vi.doMock("../package.json", async (importOriginal) => {
+      const original = await importOriginal<{ default: { expo: object } }>();
+      return { default: { ...original.default, expo: { ...original.default.expo, autolinking: { exclude } } } };
+    });
+  }
   vi.doUnmock("../../tools/privacy/contact");
   if (contact !== undefined) {
     vi.doMock("../../tools/privacy/contact", async (importOriginal) => ({ ...(await importOriginal<object>()), PRIVACY_CONTACT: contact }));
@@ -33,6 +40,20 @@ describe("app.config.ts", () => {
     expect(config.android?.blockedPermissions).toEqual(
       expect.arrayContaining(["com.google.android.gms.permission.AD_ID", "android.permission.READ_EXTERNAL_STORAGE"]),
     );
+  });
+
+  it("기본 빌드는 광고 · 추적 투명성 플러그인을 넣지 않는다", async () => {
+    const config = await load({});
+    const names = (config.plugins ?? []).map((plugin) => (Array.isArray(plugin) ? plugin[0] : plugin));
+    expect(names).not.toContain("react-native-google-mobile-ads");
+    expect(names).not.toContain("expo-tracking-transparency");
+  });
+
+  it("광고 빌드는 두 플러그인을 넣고 구글의 SKAdNetwork 식별자를 준다 (뜻: 식별자를 빼면 잡힘)", async () => {
+    const config = await load({ ADMOB_IOS_APP_ID: "ca-app-pub-3940256099942544~1458002511", ADMOB_ANDROID_APP_ID: "ca-app-pub-3940256099942544~3347511713" }, undefined, []);
+    const plugins = new Map((config.plugins ?? []).flatMap((plugin) => (Array.isArray(plugin) ? [[plugin[0], plugin[1]] as const] : [])));
+    expect(plugins.get("react-native-google-mobile-ads")).toMatchObject({ skAdNetworkItems: ["cstr6suwn9.skadnetwork"] });
+    expect(plugins.has("expo-tracking-transparency")).toBe(true);
   });
 
   it("식별자는 APP_IDENTIFIER 한 곳에서 두 OS 로 간다", async () => {

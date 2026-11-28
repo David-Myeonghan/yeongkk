@@ -111,7 +111,7 @@
 - 처음 열 때 `status`로 묻는다. 이미 예약돼 있으면 「월요일에 알려 줄게요」와 끄는 버튼이 보이고, 끄면 `cancel`을 보내고 버튼이 돌아온다. 이때 권한을 묻지 않는다. `web/src/platform/reminder.test.ts`, `web/e2e/round.spec.ts`
 - 누르면 `schedule-weekly`를 보낸다. 권한 창을 기다리느라 이 호출만 60초까지 기다린다. `web/src/platform/reminder.test.ts`, `web/e2e/round.spec.ts`
 - 기기가 허용하지 않으면 「기기 설정에서 알림이 꺼져 있어요」 한 줄만 보이고 다시 묻지 않는다. 예약은 남아 있는데 기기에서 알림을 꺼 둔 경우(`granted: false, scheduled: true`)도 처음 열 때와 끌 때 같은 한 줄이 보이고 「알려 줄게요」는 보이지 않는다. `web/src/platform/reminder.test.ts`, `web/e2e/round.spec.ts`(앞의 경우만)
-- 앱 호출이 실패하거나 시간이 지나거나 답 모양이 틀리면 버튼은 조용히 사라지고 결과 화면은 그대로 쓸 수 있다. `web/src/platform/reminder.test.ts`, `web/e2e/round.spec.ts`
+- 결과 화면을 열 때 상태 읽기(`status`)가 실패하거나 시간이 지나거나 답 모양이 틀리면 알림 줄은 보이지 않는다. 누른 뒤(`schedule-weekly` · `cancel`)에 그러면 누르기 전 상태가 남아 다시 누를 수 있다. 예약 실패면 「월요일에 알려 줄까요?」가, 끄기 실패면 「알림 끄기」가 남는다. 어느 쪽이든 결과 화면은 그대로 쓸 수 있다. `web/src/platform/reminder.test.ts`, `web/e2e/round.spec.ts`
 - 켜고 끈 결과를 스크린리더가 읽는다(live region)와 눌린 뒤 포커스가 남는 것. 테스트 없음
 - 앱 쪽: 알림은 매주 월요일 오전 9시쯤(기기 현지 시각. 안드로이드는 정확한 알람 권한을 쓰지 않아 한 시간까지 늦을 수 있다) 하나만 예약하고, 다시 예약하기 전에 이전 것을 지운다. `status`는 권한을 묻지 않는다. 허용하지 않으면 예약하지 않는다. 모르는 요청은 `BAD_REQUEST`, 기기 호출이 던지거나 네이티브 모듈이 없으면 `FAILED`다. `app/src/notify.test.ts`. 실제 기기에서의 동작: 테스트 없음
 - 이 기능을 위한 분석 이벤트는 없다.

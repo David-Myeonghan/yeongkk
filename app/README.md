@@ -32,19 +32,20 @@
 
 ## 광고
 
-광고는 빌드할 때 고르는 선택 사항이다. 기본 상태는 꺼짐이다. `app/package.json`의 `expo.autolinking.exclude`에 `react-native-google-mobile-ads`가 들어 있어서, 기본 빌드에는 광고 SDK가 두 OS 모두에 아예 들어가지 않는다. Expo Go도 그대로 된다.
+광고는 빌드할 때 고르는 선택 사항이다. 기본 상태는 꺼짐이다. `app/package.json`의 `expo.autolinking.exclude`에 `react-native-google-mobile-ads`와 `expo-tracking-transparency` 둘이 들어 있어서, 기본 빌드에는 광고 SDK도 추적 허용(ATT) 라이브러리도 두 OS 모두에 아예 들어가지 않는다. 추적 라이브러리가 빠지므로 iOS 기본 빌드는 AdSupport · AppTrackingTransparency 프레임워크를 링크하지 않고, 추적 문구(`NSUserTrackingUsageDescription`)가 없는 것과 어긋나지 않는다. Expo Go도 그대로 된다.
 
 광고를 넣는 빌드는 스위치 둘을 함께 켠다.
 
-1. `app/package.json`의 `expo.autolinking.exclude`에서 `react-native-google-mobile-ads`를 뺀다.
+1. `app/package.json`의 `expo.autolinking.exclude`에서 `react-native-google-mobile-ads`와 `expo-tracking-transparency`를 둘 다 뺀다.
 2. 아래 AdMob 앱 아이디 환경 변수 둘을 모두 준다.
 
 `app.config.ts`가 둘이 맞는지 설정을 읽을 때 검사하고, 어긋나면 빌드를 멈춘다. 안드로이드 광고 SDK는 앱 아이디가 없으면 시작할 때 죽는다고 구글이 적었다(「Missing application ID.」).
 
 - 제외를 뺐는데 앱 아이디가 없다 -> 오류. 이대로 만들면 앱이 시작하자마자 죽는다.
 - 앱 아이디를 줬는데 제외가 남아 있다 -> 오류. 광고를 켠 줄 알겠지만 광고 코드가 빌드에 없다.
+- 두 모듈 중 하나만 제외돼 있다 -> 오류(아이디가 있든 없든). 어느 쪽이 빠져 있는지 알려 준다.
 - 앱 아이디 하나만 있거나 모양이 틀리다 -> 오류. 조용히 끄지 않는다.
-- 제외가 있고 아이디가 없다 -> 광고 꺼짐(기본). 둘 다 있다 -> 광고 켜짐.
+- 둘 다 제외돼 있고 아이디가 없다 -> 광고 꺼짐(기본). 둘 다 빼고 아이디 둘이 있다 -> 광고 켜짐.
 
 - `ADMOB_IOS_APP_ID`, `ADMOB_ANDROID_APP_ID` 앱 아이디. 있으면 `app.config.ts`가 `react-native-google-mobile-ads`와 `expo-tracking-transparency` 플러그인, iOS 추적 문구(`NSUserTrackingUsageDescription`)를 넣는다.
 - `EXPO_PUBLIC_ADMOB_IOS_BANNER_ID`, `EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID` 배너 단위 아이디(`ca-app-pub-숫자16/숫자10`). 개발 빌드에서 비우면 구글 시험용 단위 아이디를 쓴다. 배포 빌드에서 비우면 배너를 띄우지 않는다.
@@ -76,7 +77,7 @@ npx expo prebuild
 
 앱을 켤 때는 알림과 관련된 어떤 것도 돌지 않는다. 권한 창과 안드로이드 알림 채널은 처음 `request`나 `schedule-weekly`가 올 때 만든다. 네이티브 모듈은 그때 늦게 불러오고, 못 불러오면 `FAILED`로 답한다.
 
-Expo Go: 문서에 따르면 로컬 알림은 Expo Go에서 된다. 원격 푸시는 안드로이드 Expo Go에서 SDK 53부터 안 된다(쓰지 않는다). 이 알림은 안드로이드 에뮬레이터에서 돌려 봤다(권한 창 · 예약 · 시각 · 누르기 · 재부팅). 진짜 폰과 iOS에서는 아직이다.
+Expo Go: 문서에 따르면 로컬 알림은 Expo Go에서 된다. 원격 푸시는 안드로이드 Expo Go에서 SDK 53부터 안 된다(쓰지 않는다). 이 알림은 안드로이드 에뮬레이터에서 돌려 봤고(권한 창 · 예약 · 시각 · 누르기 · 재부팅), iOS 시뮬레이터에서도 권한 창 · 예약 · 끄기 · 설정에서 끈 경우를 봤다(시각과 실제로 오는 것은 못 봤다). 진짜 폰에서는 아직이다.
 
 ## 코드 지도
 
@@ -137,7 +138,7 @@ Expo Go: 문서에 따르면 로컬 알림은 Expo Go에서 된다. 원격 푸�
 
 `app.config.ts`가 `android.blockedPermissions`(`src/androidPermissions.ts`의 `blockedPermissions(광고 여부)`)로 앱이 쓰지 않는 권한을 합친 매니페스트에서 뺀다. 2026-11-27 빌드에서 확인한 출처:
 
-- `com.google.android.gms.permission.AD_ID`: `expo-tracking-transparency` → `play-services-ads-identifier:18.0.1`. 광고 빌드에서는 막지 않는다(광고 플러그인이 더한다).
+- `com.google.android.gms.permission.AD_ID`: 2026-11-27에는 `expo-tracking-transparency` → `play-services-ads-identifier:18.0.1`이 들고 왔다. 지금은 그 모듈이 기본 빌드에서 제외되므로 이 길로는 오지 않는다. 막는 목록에는 그대로 남겨 두어, 다른 의존이 같은 권한을 끌고 와도 기본 빌드에서 빠지게 한다. 이 변경 뒤의 안드로이드 빌드는 다시 만들어 보지 않았다. 광고 빌드에서는 막지 않는다(광고 플러그인이 더한다).
 - `READ_EXTERNAL_STORAGE` · `WRITE_EXTERNAL_STORAGE` · `SYSTEM_ALERT_WINDOW`: `expo prebuild` 템플릿의 앱 매니페스트. `SYSTEM_ALERT_WINDOW`는 릴리스에서 빠지지만 디버그 빌드에는 React Native의 디버그 매니페스트가 다시 넣는다.
 - `com.google.android.c2dm.permission.RECEIVE`(와 `WAKE_LOCK` 일부): `expo-notifications` → `firebase-messaging:25.0.1`. `WAKE_LOCK`은 남긴다.
 - `BIND_GET_INSTALL_REFERRER_SERVICE`: `expo-notifications`의 의존 `expo-application` → `installreferrer:2.2`.
@@ -151,19 +152,22 @@ Expo Go: 문서에 따르면 로컬 알림은 Expo Go에서 된다. 원격 푸�
 
 시험용 앱 아이디와 `expo.autolinking.exclude`를 비운 빌드에서 구글 시험 배너가 웹뷰 아래에 떴고, 오프라인 화면에서 사라졌다가 돌아오면 다시 떴고, 동의 창은 뜨지 않았다(한국 같은 곳 기대와 같다). 다만 첫 빌드는 「`RNGoogleMobileAdsModule` could not be found」로 광고가 안 켜졌다. 라이브러리 17.4.0은 안드로이드 모듈을 옛 모듈(`isTurboModule=false`)로 등록하고 React Native 0.88은 `useTurboModuleInterop`을 기본으로 끄므로 이것이 원인이라고 짐작했지만, `reactNativeReleaseLevel`을 `canary` · `stable` · 없음으로 바꿔 새로 빌드해도 모두 뜨고 앱 안에서 읽은 그 플래그도 모두 참이어서 짐작이 틀렸다. 같은 설정의 새 빌드에서 재현하지 못했고 원인은 모른다(처음 빌드의 부분 증분 빌드 상태일 수 있다. 증거 없음). 그래서 빌드 설정은 바꾸지 않았다. 대신 `src/nativeAds.ts`가 광고 라이브러리를 가져오기 전에 네이티브 모듈이 등록돼 있는지 보고(`adsModuleAvailable`), 없으면 그냥 광고를 끈다. 개발 빌드에서 가져오기가 던지면 try/catch로 잡아도 「Uncaught Error」 상자가 뜨기 때문이다.
 
+## 광고 (iOS 확인)
+
+구글 시험용 앱 아이디와 시험 배너 단위 아이디로 만든 iOS 릴리스 빌드(시뮬레이터, 2026-11-28)에서 홈이 뜬 뒤 영어 동의 안내 창(「Our app wants to stay free for you」 · 「Continue」)이 먼저 떴고, 「Continue」를 누르자 추적 허용 시스템 창이 떴다(앱이 정한 한국어 이유 문장이 붙는다). 「Allow」 뒤 구글 시험 배너(「AdMob Adaptive Banner」 · 「Test mode」)가 웹뷰 아래, 홈 표시줄 위에 떴다. 앞 창은 구글 동의 도구가 띄우는 것으로 보이며 이 저장소 코드가 만든 창이 아니다. 광고 빌드의 `Info.plist`에는 `GADApplicationIdentifier`, 추적 문구, `SKAdNetworkItems`(구글 식별자 하나)가 들어 있고 AdSupport · AppTrackingTransparency를 링크한다. 기본 빌드의 바이너리에는 이 둘이 없다. 「Ask App Not to Track」 뒤에도 배너가 떴다(이전 점검, 디버그 빌드). 비맞춤 요청으로 갔는지는 네이티브 로그로 보지 못했다.
+
 ## 확인하지 못한 것
 
-진짜 폰과 iOS에서는 어떤 빌드도 돌려 본 적이 없다. 안드로이드 에뮬레이터(안드로이드 13)에서는 광고 없는 기본 빌드와 광고 빌드를 디버그로 돌려 봤다(2026-11-27, 결과는 `../docs/device-checklist.md`). 기본 빌드의 릴리스 APK에는 광고 SDK 클래스가 없었다. 광고를 넣은 첫 빌드는 스토어에 내기 전에 반드시 진짜 폰에서 먼저 돌려 본다. iOS의 Gradle 대신 CocoaPods 빌드는 돌리지 않았다.
+진짜 폰에서는 어떤 빌드도 돌려 본 적이 없다. 안드로이드 에뮬레이터(안드로이드 13)에서는 광고 없는 기본 빌드와 광고 빌드를 디버그로 돌려 봤다(2026-11-27). 기본 빌드의 릴리스 APK에는 광고 SDK 클래스가 없었다. iOS는 iPhone 18 Pro 시뮬레이터(iOS 27.2, Xcode 27.2)에서 기본 빌드를 디버그와 릴리스로, 광고 빌드를 디버그와 릴리스로 돌려 봤다(2026-11-28, AI가 화면을 조작했다). 결과는 `../docs/device-checklist.md`다. 광고를 넣은 첫 빌드는 스토어에 내기 전에 반드시 진짜 폰에서 먼저 돌려 본다.
 
-이 앱은 진짜 폰과 iOS에서 한 번도 돌려 보지 않았다. 이 맥에는 Xcode가 없다(Expo SDK 58은 Xcode 26.4 이상, 그것은 macOS 26.2 이상이 필요한데 이 맥은 14.5).
-확인한 것은 타입 검사, 순수 모듈 시험, Metro 번들 만들기(`npx expo export`), `expo-doctor`, 저장소 밖 복사본에서의 `expo prebuild`, 그리고 안드로이드 에뮬레이터에서의 디버그 빌드 실행이다. 아래와 `../docs/device-checklist.md`의 표가 같은 목록이다.
+확인한 것은 타입 검사, 순수 모듈 시험, Metro 번들 만들기(`npx expo export`), `expo-doctor`, 저장소 밖 복사본에서의 `expo prebuild`, 그리고 안드로이드 에뮬레이터와 iOS 시뮬레이터에서의 빌드 실행이다. 아래와 `../docs/device-checklist.md`의 표가 같은 목록이다.
 아래는 모두 사람이 폰에서 봐야 한다.
 
 - 웹이 앱 안에서 뜨는지, 첫 화면까지 걸리는 시간.
 - `injectedObjectJson()`이 두 OS에서 앱 정보를 주는지. 안 주면 웹이 `hello`로 묻는다.
 - 알림: 권한 창이 뜨는지, 월요일 9시쯤에 실제로 오는지(안드로이드는 정확한 시각이 아니라 한 시간까지 늦을 수 있다), 다시 눌러도 하나뿐인지, 끄면 안 오는지, 설정에서 껐을 때 `granted: false`가 오는지, 안드로이드 13 이상에서 권한 창이 채널을 만든 뒤 뜨는지, 알림을 누르면 앱이 열리는지, 없는 예약을 `cancel`해도 오류가 없는지.
 - 공유 창, 진동. 안드로이드는 공유 창을 닫아도 `completed: true`가 온다(RN이 닫음을 알려 주지 않는다).
-- 광고: 배너가 뜨는지(SDK 초기화 뒤), 동의창과 추적창 순서, 거부 뒤 비맞춤 요청, 숨길 때 자리가 사라지는지, 안전 영역. 이 맥에서는 `expo export`와 `expo prebuild`(복사본)로 설정이 적용되는 것까지만 봤다.
+- 광고: 배너가 뜨는지(SDK 초기화 뒤), 동의창과 추적창 순서, 거부 뒤 비맞춤 요청, 숨길 때 자리가 사라지는지, 안전 영역. 안드로이드 에뮬레이터와 iOS 시뮬레이터에서 시험용 아이디로 배너가 뜨는 것까지만 봤다.
 - 노치와 홈 표시줄 아래로 내용이 들어가지 않는지. 앱이 안전 영역 여백을 주므로 웹의 `env(safe-area-inset-*)`는 0이어야 한다.
 - 오프라인 화면, 웹뷰 프로세스가 죽은 뒤 다시 불러오기, 앱이 앞으로 돌아올 때의 `resume` 이벤트.
 - 외부 링크가 브라우저로 열리는지.

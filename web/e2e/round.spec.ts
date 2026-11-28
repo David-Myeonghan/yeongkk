@@ -157,7 +157,7 @@ test.describe("공유", () => {
 });
 
 // 앱 껍데기를 흉내 낸다. 웹이 보내는 notify 요청을 window.__notifyCalls 에 쌓고, 정해 둔 대로 답한다.
-type FakeApp = { grantOnSchedule: boolean; statusFails?: boolean; scheduled?: boolean };
+type FakeApp = { grantOnSchedule: boolean; statusFails?: boolean; scheduleFailsOnce?: boolean; scheduled?: boolean };
 
 const fakeAppScript = (app: FakeApp) => `(() => {
   const app = ${JSON.stringify(app)};
@@ -174,6 +174,10 @@ const fakeAppScript = (app: FakeApp) => `(() => {
       const action = msg.payload.action;
       calls.push(action);
       if (action === "status" && app.statusFails) return send(msg.id, false);
+      if (action === "schedule-weekly" && app.scheduleFailsOnce) {
+        app.scheduleFailsOnce = false;
+        return send(msg.id, false);
+      }
       if (action === "schedule-weekly") app.scheduled = app.grantOnSchedule;
       if (action === "cancel") app.scheduled = false;
       send(msg.id, true, { granted: app.grantOnSchedule, scheduled: Boolean(app.scheduled) });
@@ -230,5 +234,21 @@ test.describe("월요일 알림", () => {
     await expect.poll(() => notifyCalls(page)).toEqual(["status"]);
     await expect(page.getByRole("button", { name: /월요일/ })).toHaveCount(0);
     await expect(page.getByText(/알림/)).toHaveCount(0);
+  });
+
+  test("예약이 실패하면 제안이 남고, 다시 누르면 켜진다", async ({ context, page }) => {
+    test.slow();
+    await context.addInitScript(fakeAppScript({ grantOnSchedule: true, scheduleFailsOnce: true }));
+    await open(context, page);
+    await playRound(page);
+
+    const offer = page.getByRole("button", { name: "월요일에 알려 줄까요?" });
+    await offer.click();
+    await expect.poll(() => notifyCalls(page)).toEqual(["status", "schedule-weekly"]);
+    await expect(offer).toBeVisible();
+
+    await offer.click();
+    await expect(page.getByRole("button", { name: "알림 끄기" })).toBeVisible();
+    expect(await notifyCalls(page)).toEqual(["status", "schedule-weekly", "schedule-weekly"]);
   });
 });

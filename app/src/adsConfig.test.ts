@@ -1,5 +1,8 @@
+import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { adsFromExtra, AdsSettingsError, ADS_NATIVE_MODULE, adsModuleAvailable, bannerUnitId, GOOGLE_TEST_IDS, resolveAdsConfig } from "./adsConfig";
+import { adsFromExtra, AdsSettingsError, ADS_MODULE, ADS_NATIVE_MODULE, adsModuleAvailable, bannerUnitId, GOOGLE_TEST_IDS, resolveAdsConfig } from "./adsConfig";
 
 const IOS_APP = "ca-app-pub-3940256099942544~1458002511";
 const ANDROID_APP = "ca-app-pub-3940256099942544~3347511713";
@@ -123,5 +126,14 @@ describe("adsModuleAvailable", () => {
         throw new Error("x");
       }),
     ).toBe(false);
+  });
+});
+
+describe("ADS_NATIVE_MODULE", () => {
+  it("설치된 광고 라이브러리가 등록하는 네이티브 모듈 이름과 같다 (뜻: 이름이 틀리거나 라이브러리가 바꾸면 광고가 소리 없이 꺼지므로 여기서 잡힘)", () => {
+    const root = dirname(createRequire(import.meta.url).resolve(`${ADS_MODULE}/package.json`));
+    const spec = join(root, "src", "specs", "modules", "NativeGoogleMobileAdsModule.ts");
+    expect(existsSync(spec), `${spec} 가 없어요. 라이브러리가 파일을 옮겼으면 이 경로를 고치세요`).toBe(true);
+    expect(readFileSync(spec, "utf8")).toContain(`getEnforcing<Spec>('${ADS_NATIVE_MODULE}')`);
   });
 });

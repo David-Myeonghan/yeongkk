@@ -43,18 +43,18 @@ describe("load", () => {
     expect(callFn).toHaveBeenCalledTimes(1);
   });
 
-  it("호출이 실패해도 던지지 않고 제안을 남긴다 — 기능이 없는 것과 다르다 (뜻: 실패를 숨김으로 바꾸면 잡힘)", async () => {
+  it("상태를 못 읽으면 던지지 않고 숨긴다 — 켜졌는지 모르는 채로 제안하지 않는다 (뜻: 제안으로 바꾸면 잡힘)", async () => {
     const { reminder } = fakeBridge(true, () => Promise.reject(new Error("TIMEOUT")));
-    expect(await reminder.load()).toEqual({ kind: "offer" });
+    expect(await reminder.load()).toEqual({ kind: "hidden" });
   });
 
-  it("모양이 틀린 답도 제안을 남긴다 (뜻: 숨기면 잡힘)", async () => {
+  it("모양이 틀린 답은 숨긴다", async () => {
     const { reminder } = fakeBridge(true, () => Promise.resolve({ granted: "yes" }));
-    expect(await reminder.load()).toEqual({ kind: "offer" });
+    expect(await reminder.load()).toEqual({ kind: "hidden" });
     const second = fakeBridge(true, () => Promise.resolve(undefined));
-    expect(await second.reminder.load()).toEqual({ kind: "offer" });
+    expect(await second.reminder.load()).toEqual({ kind: "hidden" });
     const third = fakeBridge(true, () => Promise.resolve({ granted: true, scheduled: "yes" }));
-    expect(await third.reminder.load()).toEqual({ kind: "offer" });
+    expect(await third.reminder.load()).toEqual({ kind: "hidden" });
   });
 
   it("ready 가 거절돼도 숨기고 던지지 않는다", async () => {

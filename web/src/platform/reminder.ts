@@ -20,7 +20,7 @@ type Answer = { granted: boolean; scheduled: boolean };
 const asAnswer = (x: unknown): Answer | null =>
   isObj(x) && typeof x.granted === "boolean" && typeof x.scheduled === "boolean" ? { granted: x.granted, scheduled: x.scheduled } : null;
 
-// 앱에 알림 기능이 없는 것(ABSENT)과 호출이 실패했거나 답이 이상한 것(FAILED)을 가른다. 앞은 컨트롤을 숨기고 뒤는 다시 누를 수 있게 둔다.
+// 앱에 알림 기능이 없는 것(ABSENT)과 호출이 실패했거나 답이 이상한 것(FAILED)을 가른다. 없으면 숨긴다. 누른 뒤의 실패는 누르기 전 상태를 남겨 다시 누를 수 있게 하고, 처음 상태를 못 읽었으면 숨긴다.
 const ABSENT = "absent";
 const FAILED = "failed";
 type Reply = Answer | typeof ABSENT | typeof FAILED;
@@ -51,7 +51,7 @@ export function createReminder(getBridgeFn: () => WebBridge): Reminder {
 
   return {
     async load() {
-      return settled(await ask("status"), { kind: "offer" });
+      return settled(await ask("status"), HIDDEN);
     },
     async enable() {
       const reply = await ask("schedule-weekly", { timeoutMs: PROMPT_TIMEOUT_MS });
